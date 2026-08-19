@@ -17,8 +17,12 @@ export const HERMES_ORGO_INSTALL_SH = 'https://hermes-agent.nousresearch.com/ins
 export const HERMES_ORGO_PROBE_COMMAND =
   'command -v hermes >/dev/null 2>&1 && hermes --version'
 export const HERMES_ORGO_INSTALL_COMMAND = `curl -fsSL ${HERMES_ORGO_INSTALL_SH} | bash`
-export const TAILSCALE_INSTALL_COMMAND =
-  'command -v tailscale >/dev/null 2>&1 || curl -fsSL https://tailscale.com/install.sh | sh'
+export const TAILSCALE_INSTALL_COMMAND = [
+  'if ! command -v tailscale >/dev/null 2>&1 || ! command -v tailscaled >/dev/null 2>&1; then',
+  '  curl -fsSL https://tailscale.com/install.sh | sh',
+  'fi',
+  'command -v tailscale >/dev/null 2>&1 && command -v tailscaled >/dev/null 2>&1'
+].join('\n')
 export const TAILSCALE_START_COMMAND = [
   'if ! timeout 3s tailscale status --json >/dev/null 2>&1; then',
   '  command -v pkill >/dev/null 2>&1 && pkill -x tailscaled >/dev/null 2>&1 || true',
