@@ -371,6 +371,7 @@ test('starts Tailscale and returns the VM authorization challenge', async () => 
   assert.equal(status.authUrl, 'https://login.tailscale.com/a/setup123')
   assert.equal(commands.some(command => command.includes('command -v tailscaled')), true)
   assert.equal(commands.some(command => command.includes('/usr/sbin/tailscaled')), true)
+  assert.equal(commands.some(command => command.includes('--tun=userspace-networking')), true)
   assert.equal(commands.some(command => command.includes('--ssh')), true)
   assert.equal(commands.some(command => command.includes('timeout 12s tailscale up')), true)
   assert.equal(commands.some(command => command.includes('timeout 3s tailscale status')), true)
