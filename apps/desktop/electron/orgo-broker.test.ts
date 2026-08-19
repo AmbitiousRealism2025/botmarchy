@@ -370,6 +370,48 @@ test('starts Tailscale and returns the VM authorization challenge', async () => 
   const status = await beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl)
   assert.equal(status.authUrl, 'https://login.tailscale.com/a/setup123')
   assert.equal(commands.some(command => command.includes('--ssh')), true)
+  assert.equal(commands.some(command => command.includes('nohup tailscaled')), true)
+})
+
+test('falls back to tailscale login when up omits the authorization URL', async () => {
+  const commands: string[] = []
+
+  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input)
+
+    if (url.endsWith('/bash')) {
+      const command = String((JSON.parse(String(init?.body || '{}')) as { command?: string }).command || '')
+      commands.push(command)
+
+      if (command.includes('tailscale login')) {
+        return json({ success: true, exit_code: 0, output: 'https://login.tailscale.com/a/fallback123' })
+      }
+
+      if (command.includes('tailscale status')) {
+        return json({ success: true, exit_code: 0, output: '{"BackendState":"NeedsLogin"}' })
+      }
+
+      return json({ success: true, exit_code: 0, output: '' })
+    }
+
+    return json({ id: COMPUTER_ID, name: 'Shared', status: 'running', instance_id: '8b517302' })
+  }) as typeof fetch
+
+  const status = await beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl)
+  assert.equal(status.authUrl, 'https://login.tailscale.com/a/fallback123')
+  assert.equal(commands.some(command => command.includes('tailscale login')), true)
+})
+
+test('reports a missing Tailscale authorization URL instead of silently stalling', async () => {
+  const fetchImpl = (async (input: string | URL | Request) =>
+    String(input).endsWith('/bash')
+      ? json({ success: true, exit_code: 0, output: '' })
+      : json({ id: COMPUTER_ID, name: 'Shared', status: 'running', instance_id: '8b517302' })) as typeof fetch
+
+  await assert.rejects(
+    beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl),
+    /Tailscale did not return a cloud-computer authorization URL/
+  )
 })
 
 test('writes the Orgo key to the remote secret env rather than MCP config', async () => {

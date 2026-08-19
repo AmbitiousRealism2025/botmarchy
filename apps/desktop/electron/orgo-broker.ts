@@ -19,8 +19,24 @@ export const HERMES_ORGO_PROBE_COMMAND =
 export const HERMES_ORGO_INSTALL_COMMAND = `curl -fsSL ${HERMES_ORGO_INSTALL_SH} | bash`
 export const TAILSCALE_INSTALL_COMMAND =
   'command -v tailscale >/dev/null 2>&1 || curl -fsSL https://tailscale.com/install.sh | sh'
-export const TAILSCALE_START_COMMAND =
-  'systemctl enable --now tailscaled >/dev/null 2>&1 || service tailscaled start >/dev/null 2>&1 || true'
+export const TAILSCALE_START_COMMAND = [
+  'if ! tailscale status --json >/dev/null 2>&1; then',
+  '  systemctl enable --now tailscaled >/dev/null 2>&1 || service tailscaled start >/dev/null 2>&1 || true',
+  'fi',
+  'if ! tailscale status --json >/dev/null 2>&1; then',
+  '  mkdir -p /var/lib/tailscale /var/run/tailscale',
+  '  if ! command -v pgrep >/dev/null 2>&1 || ! pgrep -x tailscaled >/dev/null 2>&1; then',
+  '    nohup tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock >/var/log/tailscaled.log 2>&1 &',
+  '  fi',
+  'fi',
+  'for attempt in 1 2 3 4 5 6 7 8 9 10; do',
+  '  tailscale status --json >/dev/null 2>&1 && exit 0',
+  '  sleep 1',
+  'done',
+  'echo "tailscaled did not start"',
+  'test -f /var/log/tailscaled.log && tail -n 20 /var/log/tailscaled.log || true',
+  'exit 1'
+].join('\n')
 
 const COMPUTER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -515,7 +531,11 @@ export async function beginOrgoTailscaleSetup(
     throw new OrgoDesktopError('unavailable', install.output.trim() || 'Could not install Tailscale on Orgo.')
   }
 
-  await runOrgoBash(apiKey, computerId, TAILSCALE_START_COMMAND, fetchImpl)
+  const start = await runOrgoBash(apiKey, computerId, TAILSCALE_START_COMMAND, fetchImpl)
+
+  if (!start.success) {
+    throw new OrgoDesktopError('unavailable', start.output.trim() || 'Could not start Tailscale on Orgo.')
+  }
 
   const current = await getOrgoTailscaleStatus(apiKey, computerId, fetchImpl)
 
@@ -535,11 +555,32 @@ export async function beginOrgoTailscaleSetup(
   )
 
   const next = await getOrgoTailscaleStatus(apiKey, computerId, fetchImpl)
+  let authUrl = next.authUrl || extractTailscaleAuthUrl(login.output)
+  let authOutput = login.output
+
+  if (!next.connected && !authUrl) {
+    const fallback = await runOrgoBash(
+      apiKey,
+      computerId,
+      'tailscale login --timeout=10s 2>&1 || true',
+      fetchImpl
+    )
+
+    authOutput = [authOutput, fallback.output].filter(Boolean).join('\n')
+    authUrl = extractTailscaleAuthUrl(fallback.output)
+  }
+
+  if (!next.connected && !authUrl) {
+    throw new OrgoDesktopError(
+      'unavailable',
+      authOutput.trim() || 'Tailscale did not return a cloud-computer authorization URL.'
+    )
+  }
 
   return {
     ...next,
     installed: true,
-    authUrl: next.authUrl || extractTailscaleAuthUrl(login.output)
+    authUrl
   }
 }
 
