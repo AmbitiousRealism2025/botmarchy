@@ -422,7 +422,7 @@ export async function applyUpdates(opts: DesktopUpdateApplyOptions = {}): Promis
     return {
       ok: false,
       error: 'unavailable',
-      message: 'Install a tested Hermes Bots DMG to update this product.'
+      message: 'Pull a reviewed Hermes Bots source release and rerun the setup script.'
     }
   }
 

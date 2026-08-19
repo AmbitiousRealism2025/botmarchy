@@ -1,7 +1,7 @@
-name: "🔧 Setup / Installation Help"
-description: Having trouble installing or configuring Hermes? Ask here.
-title: "[Setup]: "
-labels: ["setup"]
+name: '🔧 Setup / Installation Help'
+description: Having trouble installing or configuring Hermes Bots? Ask here.
+title: '[Setup]: '
+labels: ['setup']
 body:
   - type: markdown
     attributes:
@@ -9,11 +9,10 @@ body:
         Sorry you're having trouble! Please fill out the details below so we can help.
 
         **Quick checks first:**
-        - Run `hermes debug share` and paste the links in the Debug Report section below
-        - If you're in a chat session, you can use `/debug` instead — it does the same thing
-        - Try `hermes update` to get the latest version
-        - Check the [README troubleshooting section](https://github.com/NousResearch/hermes-agent#troubleshooting)
-        - For general questions, consider the [Nous Research Discord](https://discord.gg/NousResearch) for faster help
+        - Run `./scripts/setup-hermes-bots.sh --verify` from the repository root
+        - Record `git rev-parse --short HEAD`, `node --version`, `npm --version`, and `uv --version`
+        - Check the [README](https://github.com/nickvasilescu/hermes-bots#readme) and [support guide](https://github.com/nickvasilescu/hermes-bots/blob/main/SUPPORT.md)
+        - Remove API keys, OAuth codes, cookies, SSH keys, and other credentials from all output
 
   - type: textarea
     id: description
@@ -21,8 +20,8 @@ body:
       label: What's Going Wrong?
       description: Describe what you're trying to do and where it fails.
       placeholder: |
-        I ran `hermes setup` and selected Nous Portal, but when I try to
-        start the gateway I get...
+        I ran the Hermes Bots source setup and opened the app, but the Orgo
+        connection step fails after...
     validations:
       required: true
 
@@ -32,10 +31,10 @@ body:
       label: Steps Taken
       description: What did you do? Include the exact commands you ran.
       placeholder: |
-        1. Ran the install script: `curl -fsSL ... | bash`
-        2. Ran `hermes setup` and chose "Quick setup"
-        3. Selected OpenRouter, entered API key
-        4. Ran `hermes chat` and got error...
+        1. Cloned the repository
+        2. Ran `./scripts/setup-hermes-bots.sh --verify --run`
+        3. Entered the Orgo setup flow
+        4. Received the error...
     validations:
       required: true
 
@@ -44,6 +43,7 @@ body:
     attributes:
       label: Installation Method
       options:
+        - Hermes Bots source setup script
         - Install script (curl | bash)
         - Manual clone + pip/uv install
         - PowerShell installer (Windows)
@@ -65,31 +65,24 @@ body:
     attributes:
       label: Python Version
       description: Output of `python --version` (or `python3 --version`)
-      placeholder: "3.11.9"
+      placeholder: '3.11.9'
 
   - type: input
     id: hermes-version
     attributes:
       label: Hermes Version
       description: Output of `hermes version` (if install got that far)
-      placeholder: "2.1.0"
+      placeholder: '2.1.0'
 
   - type: textarea
     id: debug-report
     attributes:
       label: Debug Report
       description: |
-        Run `hermes debug share` from your terminal and paste the links it prints here.
-        This uploads your system info, config, and recent logs to a paste service automatically.
-
-        If you're in an interactive chat session, you can also use the `/debug` slash command — it does the same thing.
-
-        If the upload fails or install didn't get that far, run `hermes debug share --local` and paste the output directly.
-        If even that doesn't work, run `hermes doctor` and paste that output instead.
+        Run `hermes debug share --local`, inspect the local output, remove credentials and private data, then paste only the relevant section.
+        If that command is unavailable, run `hermes doctor` and apply the same review before posting.
       placeholder: |
-        Report   https://paste.rs/abc123
-        agent.log   https://paste.rs/def456
-        gateway.log   https://paste.rs/ghi789
+        Redacted local diagnostics...
       render: shell
 
   - type: textarea
@@ -107,6 +100,6 @@ body:
       label: What I've Already Tried
       description: List any fixes or workarounds you've already attempted.
       placeholder: |
-        - Ran `hermes update`
-        - Tried reinstalling with `pip install -e ".[all]"`
-        - Checked that OPENROUTER_API_KEY is set in ~/.hermes/.env
+        - Reran `./scripts/setup-hermes-bots.sh --verify`
+        - Confirmed Tailscale is connected
+        - Restarted the Orgo computer

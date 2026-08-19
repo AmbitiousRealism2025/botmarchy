@@ -31,6 +31,6 @@ describe('message type scale', () => {
 
     expect(assistant.match(/text-\[10px\]/g)?.length).toBe(3)
     expect(assistant.match(/px-2 py-0\.5/g)?.length).toBe(3)
-    expect(assistant.match(/max-w-\[88%\]/g)?.length).toBe(4)
+    expect(assistant.match(/max-w-\[88%\]/g)?.length).toBe(3)
   })
 })

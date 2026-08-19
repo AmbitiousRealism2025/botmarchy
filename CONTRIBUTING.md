@@ -1,6 +1,31 @@
-# Contributing to Hermes Agent
+# Contributing to Hermes Bots and Hermes Agent
 
 Thank you for contributing to Hermes Agent! This guide covers everything you need: setting up your dev environment, understanding the architecture, deciding what to build, and getting your PR merged.
+
+## Hermes Bots contributors
+
+This repository's primary product is the Hermes Bots desktop experience built on the upstream Hermes Agent codebase.
+
+For a Bot-focused development checkout:
+
+```bash
+./scripts/setup-hermes-bots.sh --verify
+npm --workspace apps/desktop run dev:bot
+```
+
+Before opening a Bot product pull request, run:
+
+```bash
+npm --workspace apps/desktop run typecheck
+npm --workspace apps/desktop run lint
+npm --workspace apps/desktop run test:ui
+npm --workspace apps/desktop run test:desktop:platforms
+npm --workspace apps/desktop run test:e2e:bot
+```
+
+Keep Bot-specific behavior behind the existing product boundary, preserve generic Hermes behavior, and add coverage for both where they differ. Changes that fix an unmodified upstream Hermes Agent defect should also be proposed to [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) when practical.
+
+By participating, you agree to follow [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md). Report vulnerabilities through [`SECURITY.md`](SECURITY.md), not a public issue.
 
 ---
 

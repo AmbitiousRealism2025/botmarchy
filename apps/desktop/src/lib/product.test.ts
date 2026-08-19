@@ -24,7 +24,7 @@ describe('bot product providers', () => {
   })
 
   it('uses release-level updates for the Bot SKU', () => {
-    expect(BOT_UPDATE_POLICY).toBe('release-dmg')
+    expect(BOT_UPDATE_POLICY).toBe('source-release')
     expect(allowsGenericHermesUpdates()).toBe(!isBotProduct())
   })
 })

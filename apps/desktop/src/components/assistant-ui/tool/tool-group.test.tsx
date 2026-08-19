@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearAllPrompts, setApprovalRequest } from '@/store/prompts'
 import { $activeSessionId } from '@/store/session'
 import { clearDismissedToolRows } from '@/store/tool-dismiss'
-import { $toolDisclosureStates } from '@/store/tool-view'
+import { $toolDisclosureStates, setToolViewMode } from '@/store/tool-view'
 
 import { Thread } from '../thread'
 
@@ -413,6 +413,7 @@ beforeEach(() => {
   clearAllPrompts()
   $activeSessionId.set('sess-1')
   $toolDisclosureStates.set({})
+  setToolViewMode('technical')
   clearDismissedToolRows()
 })
 
@@ -420,6 +421,7 @@ afterEach(() => {
   cleanup()
   clearAllPrompts()
   $activeSessionId.set(null)
+  setToolViewMode('product')
   clearDismissedToolRows()
 })
 

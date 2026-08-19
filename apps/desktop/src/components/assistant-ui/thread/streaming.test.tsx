@@ -1,7 +1,9 @@
 import { AssistantRuntimeProvider, type ThreadMessage, useExternalStoreRuntime } from '@assistant-ui/react'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useEffect, useState } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { setToolViewMode } from '@/store/tool-view'
 
 import { Thread } from '.'
 
@@ -475,7 +477,10 @@ function DismissibleErrorHarness({ onDismissError }: { onDismissError: (messageI
 describe('assistant-ui streaming renderer', () => {
   beforeEach(() => {
     resizeObservers.clear()
+    setToolViewMode('technical')
   })
+
+  afterEach(() => setToolViewMode('product'))
 
   it('renders assistant text incrementally before completion', async () => {
     let controls: StreamingControls | undefined
@@ -673,6 +678,7 @@ describe('assistant-ui streaming renderer', () => {
     )
 
     fireEvent.click(container.querySelector('[data-tool-row] button')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Tool payload' }))
 
     await waitFor(() => {
       expect(container.textContent).toContain('FAL rejected the prompt')
@@ -685,10 +691,11 @@ describe('assistant-ui streaming renderer', () => {
     const { container } = render(<MessageHarness message={assistantTerminalMessage()} />)
 
     fireEvent.click(container.querySelector('[data-tool-row] button')!)
+    fireEvent.click(screen.getByRole('button', { name: 'Tool payload' }))
 
     await waitFor(() => {
-      expect(container.textContent).toContain('$ npm run check --workspace=apps/desktop')
-      expect(container.textContent).toContain('exit 0')
+      expect(container.textContent).toContain('Ran npm run check --workspace=apps/desktop')
+      expect(container.textContent).toContain('"exit_code": 0')
       expect(container.textContent).toContain('all checks passed')
     })
   })

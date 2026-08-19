@@ -1,4 +1,4 @@
-# Hermes Agent Security Policy
+# Hermes Bots and Hermes Agent Security Policy
 
 This document describes Hermes Agent's trust model, names the one
 security boundary the project treats as load-bearing, and defines the
@@ -6,10 +6,11 @@ scope for vulnerability reports.
 
 ## 1. Reporting a Vulnerability
 
-Report privately via [GitHub Security Advisories](https://github.com/NousResearch/hermes-agent/security/advisories/new)
-or **security@nousresearch.com**. Do not open public issues for
-security vulnerabilities. **Hermes Agent does not operate a bug
-bounty program.**
+Report Hermes Bots vulnerabilities privately through [GitHub Security Advisories](https://github.com/nickvasilescu/hermes-bots/security/advisories/new). Do not open public issues for security vulnerabilities. This project does not operate a bug bounty program.
+
+If a vulnerability affects unmodified upstream Hermes Agent code, also follow the [Nous Research security policy](https://github.com/NousResearch/hermes-agent/security/policy).
+
+Security fixes target the latest `main` commit and latest tagged Hermes Bots source release. Older source revisions are not guaranteed to receive backports.
 
 A useful report includes:
 
@@ -21,11 +22,21 @@ A useful report includes:
 - A reproduction against `main` or the latest release.
 - A statement of which trust boundary in §2 is crossed.
 
+Never include live API keys, OAuth codes, cookies, Tailscale auth keys, SSH private keys, or unreviewed debug archives in a report.
+
 Please read §2 and §3 before submitting. Reports that demonstrate
 limits of an in-process heuristic this policy does not treat as a
 boundary will be closed as out-of-scope under §3 — but see §3.2:
 they are still welcome as regular issues or pull requests, just not
 through the private security channel.
+
+### Hermes Bots deployment notes
+
+- The shared Orgo computer is single-tenant infrastructure under the user's account. Bots sharing it are not security-isolated from one another.
+- Tailscale is the network boundary around the remote Hermes service. Do not expose the Hermes gateway directly to the public internet.
+- Skills, plugins, MCP servers, and connected apps can execute code or access data with the privileges granted to them. Review them before installation.
+- Orgo and Composio keys saved through the desktop app are encrypted with Electron `safeStorage`; provider and service credentials configured on the Orgo computer remain subject to that computer's OS and account controls.
+- Treat agent output and content fetched from email, the web, connected apps, or other external systems as untrusted input.
 
 ---
 
@@ -329,7 +340,7 @@ that:
 
 - **Coordinated disclosure window:** 90 days from report, or until a
   fix is released, whichever comes first.
-- **Channel:** the GHSA thread or email correspondence with
-  security@nousresearch.com.
+- **Channel:** the Hermes Bots GHSA thread. Reports that affect unmodified
+  upstream code may also use the Nous Research channel linked in §1.
 - **Credit:** reporters are credited in release notes unless
   anonymity is requested.

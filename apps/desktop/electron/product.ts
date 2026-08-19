@@ -7,7 +7,7 @@ export const BOT_APP_NAME = 'Hermes Bots'
 export const BOT_APP_ID = 'com.nousresearch.hermes-bots'
 export const BOT_USER_DATA_DIRNAME = 'Hermes Bots'
 export const BOT_TEMPLATE_REF = 'system/hermes-agent@1.0.0'
-export const BOT_UPDATE_POLICY = 'release-dmg' as const
+export const BOT_UPDATE_POLICY = 'source-release' as const
 
 export type DesktopProduct = 'bot' | 'hermes'
 

@@ -80,7 +80,7 @@ export function AboutSettings() {
   let statusTone: 'idle' | 'available' | 'error' = 'idle'
 
   if (!genericUpdates) {
-    statusLine = 'Updates are delivered as tested Hermes Bots DMGs.'
+    statusLine = 'Update from source with git pull, then rerun the Hermes Bots setup script.'
   } else if (!supported) {
     statusLine = status?.message ?? a.cantUpdate
     statusTone = 'error'

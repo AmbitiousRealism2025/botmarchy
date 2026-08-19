@@ -12604,7 +12604,7 @@ ipcMain.handle('hermes:updates:check', async () =>
   !allowsGenericHermesUpdates()
     ? {
         supported: false,
-        message: 'Updates are delivered as tested Hermes Bots releases.',
+        message: 'Update by pulling a reviewed Hermes Bots source release.',
         fetchedAt: Date.now()
       }
     : checkUpdates().catch(error => ({
@@ -12621,7 +12621,7 @@ ipcMain.handle('hermes:updates:apply', async (_event, payload) =>
     ? {
         ok: false,
         error: 'unavailable',
-        message: 'Install a tested Hermes Bots DMG to update this product.'
+        message: 'Pull a reviewed Hermes Bots source release and rerun the setup script.'
       }
     : applyUpdates(payload || {}).catch(error => ({
         ok: false,

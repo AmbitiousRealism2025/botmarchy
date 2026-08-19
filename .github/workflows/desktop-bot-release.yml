@@ -1,4 +1,4 @@
-name: Desktop Bot Release
+name: Desktop Bot Source Release
 
 on:
   workflow_dispatch:
@@ -7,15 +7,15 @@ on:
       - 'hermes-bots-v*'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: desktop-bot-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  macos-signed:
-    name: Signed macOS DMG
+  source-bootstrap:
+    name: macOS source bootstrap
     runs-on: macos-15
     timeout-minutes: 90
     steps:
@@ -26,27 +26,20 @@ jobs:
           node-version: 22
           cache: npm
 
-      - uses: ./.github/actions/retry
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39
         with:
-          command: npm ci
+          version: '0.9.28'
+          enable-cache: true
 
-      - name: Build signed Bot DMG
-        working-directory: apps/desktop
+      - name: Verify clean source setup
+        run: ./scripts/setup-hermes-bots.sh --verify
+
+      - name: Build Bot product
         env:
           HERMES_DESKTOP_PRODUCT: bot
           VITE_HERMES_DESKTOP_PRODUCT: bot
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-        run: npm run dist:bot:mac:dmg
-
-      - name: Upload DMG
-        uses: actions/upload-artifact@v4
-        with:
-          name: hermes-bots-macos-dmg
-          path: apps/desktop/release/*.dmg
+        run: npm --workspace apps/desktop run build
 
   bot-e2e:
     name: Bot Mode E2E
@@ -62,12 +55,17 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 26
+          node-version: 22
           cache: npm
 
       - uses: ./.github/actions/retry
         with:
           command: npm ci
+
+      - name: Audit JavaScript dependencies
+        run: |
+          npm audit --omit=dev
+          npm audit
 
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39
@@ -88,16 +86,11 @@ jobs:
       - name: Run Bot SKU quality gate
         working-directory: apps/desktop
         run: |
+          bash -n ../../scripts/setup-hermes-bots.sh
+          ../../scripts/setup-hermes-bots.sh --help
           npm run typecheck
           npm run lint
-          npx vitest run --project ui \
-            src/store/updates.test.ts \
-            src/lib/product.test.ts \
-            src/lib/bot-group-session.test.ts \
-            src/lib/bot-group-chat.test.ts \
-            src/app/bot-product/setup-overlay.test.ts \
-            src/app/contrib/controller-titlebar.test.ts \
-            src/app/connectors/mcp.test.ts
+          npm run test:ui
           npm run test:desktop:platforms
 
       - name: Run Bot SKU packaged E2E
@@ -107,3 +100,21 @@ jobs:
           VITE_HERMES_DESKTOP_PRODUCT: bot
         run: |
           xvfb-run --auto-servernum npm run test:e2e:bot
+
+  publish-source-release:
+    name: Publish source release
+    if: startsWith(github.ref, 'refs/tags/hermes-bots-v')
+    needs: [bot-e2e, source-bootstrap]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create GitHub source release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --generate-notes \
+            --title "$GITHUB_REF_NAME"

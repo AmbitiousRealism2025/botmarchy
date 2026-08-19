@@ -4,7 +4,7 @@ Hermes Bots is a focused desktop app for creating persistent AI bots, giving the
 
 It packages the Hermes Agent runtime behind a Bot-first interface. Your Mac runs the desktop UI; when cloud mode is enabled, bot profiles, conversations, memory, skills, and tool execution live on your Orgo computer and are reached over a private Tailscale connection.
 
-> **Private preview:** this repository and its releases are private while the onboarding and distribution flow are being finalized.
+> **Source-first preview:** Hermes Bots currently runs directly from this repository. A packaged App Store or notarized DMG is not required.
 
 ![Hermes Bots connected workspace](docs/images/onboarding/09-connected-workspace.png)
 
@@ -24,36 +24,31 @@ It packages the Hermes Agent runtime behind a Bot-first interface. Your Mac runs
 You need:
 
 1. A Mac running a current supported macOS release.
-2. An [Orgo](https://www.orgo.ai/start) account and API key for cloud mode.
-3. A free [Tailscale](https://tailscale.com/download/mac) account and the Tailscale Mac app.
-4. Either:
+2. Git, Node.js 22.22 or newer, npm, and [`uv`](https://docs.astral.sh/uv/getting-started/installation/).
+3. An [Orgo](https://www.orgo.ai/start) account and API key for cloud mode.
+4. A free [Tailscale](https://tailscale.com/download/mac) account and the Tailscale Mac app.
+5. Either:
    - a ChatGPT/Codex subscription; or
    - an xAI Grok account.
-5. Optionally, a Composio Connect key for shared app integrations.
+6. Optionally, a Composio Connect key for shared app integrations.
 
 Cloud setup provisions an Orgo computer with 8 GB RAM and 4 CPU cores. This may create billable Orgo usage.
 
-## Install Hermes Bots
+## Run Hermes Bots from GitHub
 
-### From a release
+### Give the repository to a coding agent
 
-1. Open this repository's **Releases** page.
-2. Download the latest macOS DMG.
-3. Open the DMG.
-4. Drag **Hermes Bots** into **Applications**.
-5. Launch Hermes Bots.
+Send your coding agent this repository URL and the prompt in [`docs/agent-assisted-setup.md`](docs/agent-assisted-setup.md). The agent will clone the repository, verify prerequisites, install from the committed lockfiles, and launch the Bot product.
 
-If macOS blocks an unsigned local development build, right-click the app and choose **Open**. Public releases should be signed and notarized.
-
-### From source
+### Run it yourself
 
 ```bash
 git clone https://github.com/nickvasilescu/hermes-bots.git
 cd hermes-bots
-npm install
-cd apps/desktop
-npm run dev:bot
+./scripts/setup-hermes-bots.sh --verify --run
 ```
+
+Setup does not delete `~/.hermes`, create cloud resources, or save credentials. Those actions only occur after the app opens and you explicitly complete the first-run guide.
 
 ## First-run setup
 
@@ -217,6 +212,14 @@ On the Orgo computer in cloud mode:
 
 Group definitions and pinned-bot presentation state are currently local to the desktop app.
 
+## Security model
+
+Hermes bots can run commands, read and write files, use connected apps, and control the shared computer. Review skills, plugins, MCP servers, and approval requests before granting access.
+
+The shared Orgo computer is single-tenant infrastructure for one owner. Bots on that computer are not isolated from each other and can potentially reach the same files and credentials. Content from the web, email, connected apps, and other external systems must be treated as untrusted input.
+
+Keep the Hermes gateway behind Tailscale, scope third-party credentials to the minimum required permissions, and never commit credentials to this repository. See [`SECURITY.md`](SECURITY.md) for the full trust model and private vulnerability reporting.
+
 ## Troubleshooting
 
 ### This Mac does not connect in the Tailscale step
@@ -269,7 +272,6 @@ From `apps/desktop`:
 npm run dev:bot            # Bot product in development mode
 npm run test:e2e:bot       # Mocked product-shell E2E
 npm run typecheck          # Renderer, Electron, and E2E type checks
-npm run dist:bot:mac:dmg   # Build the macOS DMG
 ```
 
 Run the focused Orgo and remote-runtime tests:
@@ -289,11 +291,15 @@ HERMES_DESKTOP_PRODUCT=bot \
 npx playwright test e2e/bot-product-docs.spec.ts
 ```
 
-## Releases
+## Updating a source checkout
 
-The Bot release workflow is in `.github/workflows/desktop-bot-release.yml`. It builds the Bot SKU, runs regression coverage, and produces the macOS release artifacts. Signing and notarization require the configured Apple developer secrets.
+```bash
+git pull --ff-only
+./scripts/setup-hermes-bots.sh --verify
+npm --workspace apps/desktop run dev:bot
+```
 
-This release stays on the proven single shared-Orgo architecture. The Orgo template is compatibility-pinned, and generic Hermes client/backend update prompts are disabled in the Bot product; upgrades are shipped as tested Hermes Bots DMGs. Cross-machine Bot Mode is intentionally deferred for the future one-computer-per-bot architecture.
+Hermes Bots stays on the proven single shared-Orgo architecture. The Orgo template is compatibility-pinned, and generic Hermes client/backend update prompts are disabled in the Bot product. Source users update the client and compatibility policy together by pulling a reviewed Hermes Bots commit. Cross-machine Bot Mode is intentionally deferred for the future one-computer-per-bot architecture.
 
 See [`docs/bot-product-release-scope.md`](docs/bot-product-release-scope.md) for the compatibility policy, accepted upstream hardening, deferred work, and release gate.
 
@@ -301,4 +307,6 @@ See [`docs/bot-product-release-scope.md`](docs/bot-product-release-scope.md) for
 
 Hermes Bots is built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research.
 
-The original upstream README is preserved at [`docs/upstream-hermes-agent.md`](docs/upstream-hermes-agent.md). See [`LICENSE`](LICENSE) for licensing terms.
+Hermes Bots is an independent open-source project and is not endorsed by or affiliated with Nous Research or the third-party services it integrates.
+
+The original upstream README is preserved at [`docs/upstream-hermes-agent.md`](docs/upstream-hermes-agent.md). See [`LICENSE`](LICENSE) and [`NOTICE.md`](NOTICE.md) for licensing and attribution, [`CONTRIBUTING.md`](CONTRIBUTING.md) to contribute, [`SUPPORT.md`](SUPPORT.md) for help, and [`SECURITY.md`](SECURITY.md) for private vulnerability reporting.

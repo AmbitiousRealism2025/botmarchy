@@ -1,7 +1,7 @@
-name: "🐛 Bug Report"
+name: '🐛 Bug Report'
 description: Report a bug — something that's broken, crashes, or behaves incorrectly.
-title: "[Bug]: "
-labels: ["bug"]
+title: '[Bug]: '
+labels: ['bug']
 body:
   - type: markdown
     attributes:
@@ -9,9 +9,9 @@ body:
         Thanks for reporting a bug! Please fill out the sections below so we can reproduce and fix it quickly.
 
         **Before submitting**, please:
-        - [ ] Search [existing issues](https://github.com/NousResearch/hermes-agent/issues) to avoid duplicates
-        - [ ] Update to the latest version (`hermes update`) and confirm the bug still exists
-        - [ ] Run `hermes debug share` and paste the links below (see Debug Report section)
+        - [ ] Search [existing issues](https://github.com/nickvasilescu/hermes-bots/issues) to avoid duplicates
+        - [ ] Pull the latest Hermes Bots source and rerun `./scripts/setup-hermes-bots.sh --verify`
+        - [ ] Remove credentials and private data from logs, screenshots, and diagnostics
 
   - type: textarea
     id: description
@@ -59,6 +59,9 @@ body:
       description: Which part of Hermes is affected?
       multiple: true
       options:
+        - Hermes Bots desktop
+        - Orgo / Tailscale cloud connection
+        - Connected apps / Composio
         - CLI (interactive chat)
         - Gateway (Telegram/Discord/Slack/WhatsApp)
         - Setup / Installation
@@ -88,16 +91,9 @@ body:
     attributes:
       label: Debug Report
       description: |
-        Run `hermes debug share` from your terminal and paste the links it prints here.
-        This uploads your system info, config, and recent logs to a paste service automatically.
-
-        If you're in an interactive chat session, you can also use the `/debug` slash command — it does the same thing.
-
-        If the upload fails, run `hermes debug share --local` and paste the output directly.
+        Run `hermes debug share --local`, inspect the local output, remove credentials and private data, then paste only the relevant section.
       placeholder: |
-        Report   https://paste.rs/abc123
-        agent.log   https://paste.rs/def456
-        gateway.log   https://paste.rs/ghi789
+        Redacted local diagnostics...
       render: shell
     validations:
       required: true
@@ -116,14 +112,14 @@ body:
     attributes:
       label: Python Version
       description: Output of `python --version`
-      placeholder: "3.11.9"
+      placeholder: '3.11.9'
 
   - type: input
     id: hermes-version
     attributes:
       label: Hermes Version
       description: Output of `hermes version`
-      placeholder: "2.1.0"
+      placeholder: '2.1.0'
 
   - type: textarea
     id: logs
