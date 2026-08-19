@@ -506,6 +506,16 @@ export function tailscaleHostnameForComputer(computerId: string): string {
   return `hermes-bots-${normalizeOrgoComputerId(computerId).slice(0, 8)}`
 }
 
+async function runTailscaleSetupStep<T>(label: string, action: () => Promise<T>): Promise<T> {
+  try {
+    return await action()
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+
+    throw new OrgoDesktopError('unavailable', `${label}: ${detail}`)
+  }
+}
+
 export async function getOrgoTailscaleStatus(
   apiKey: string,
   computerId: string,
@@ -524,47 +534,64 @@ export async function beginOrgoTailscaleSetup(
   computerId: string,
   fetchImpl: typeof fetch = fetch
 ): Promise<TailscaleNodeStatus> {
-  await ensureOrgoComputerRunning(apiKey, computerId, fetchImpl)
+  await runTailscaleSetupStep('Could not start the Orgo computer', () =>
+    ensureOrgoComputerRunning(apiKey, computerId, fetchImpl)
+  )
 
-  const install = await runOrgoBash(apiKey, computerId, TAILSCALE_INSTALL_COMMAND, fetchImpl)
+  const install = await runTailscaleSetupStep('Could not install Tailscale', () =>
+    runOrgoBash(apiKey, computerId, TAILSCALE_INSTALL_COMMAND, fetchImpl)
+  )
 
   if (!install.success) {
     throw new OrgoDesktopError('unavailable', install.output.trim() || 'Could not install Tailscale on Orgo.')
   }
 
-  const start = await runOrgoBash(apiKey, computerId, TAILSCALE_START_COMMAND, fetchImpl)
+  const start = await runTailscaleSetupStep('Could not start tailscaled', () =>
+    runOrgoBash(apiKey, computerId, TAILSCALE_START_COMMAND, fetchImpl)
+  )
 
   if (!start.success) {
     throw new OrgoDesktopError('unavailable', start.output.trim() || 'Could not start Tailscale on Orgo.')
   }
 
-  const current = await getOrgoTailscaleStatus(apiKey, computerId, fetchImpl)
+  const current = await runTailscaleSetupStep('Could not read Tailscale status', () =>
+    getOrgoTailscaleStatus(apiKey, computerId, fetchImpl)
+  )
 
   if (current.connected) {
-    await runOrgoBash(apiKey, computerId, 'tailscale set --ssh=true >/dev/null 2>&1 || true', fetchImpl)
+    await runTailscaleSetupStep('Could not enable Tailscale SSH', () =>
+      runOrgoBash(apiKey, computerId, 'tailscale set --ssh=true >/dev/null 2>&1 || true', fetchImpl)
+    )
 
     return current
   }
 
   const hostname = tailscaleHostnameForComputer(computerId)
 
-  const login = await runOrgoBash(
-    apiKey,
-    computerId,
-    `command -v timeout >/dev/null 2>&1 && timeout 12s tailscale up --ssh --hostname=${hostname} 2>&1 || true`,
-    fetchImpl
+  const login = await runTailscaleSetupStep('Could not begin Tailscale authorization', () =>
+    runOrgoBash(
+      apiKey,
+      computerId,
+      `command -v timeout >/dev/null 2>&1 && timeout 12s tailscale up --ssh --hostname=${hostname} 2>&1 || true`,
+      fetchImpl
+    )
   )
 
-  const next = await getOrgoTailscaleStatus(apiKey, computerId, fetchImpl)
+  const next = await runTailscaleSetupStep('Could not refresh Tailscale status', () =>
+    getOrgoTailscaleStatus(apiKey, computerId, fetchImpl)
+  )
+
   let authUrl = next.authUrl || extractTailscaleAuthUrl(login.output)
   let authOutput = login.output
 
   if (!next.connected && !authUrl) {
-    const fallback = await runOrgoBash(
-      apiKey,
-      computerId,
-      'command -v timeout >/dev/null 2>&1 && timeout 12s tailscale login 2>&1 || true',
-      fetchImpl
+    const fallback = await runTailscaleSetupStep('Could not request a Tailscale login URL', () =>
+      runOrgoBash(
+        apiKey,
+        computerId,
+        'command -v timeout >/dev/null 2>&1 && timeout 12s tailscale login 2>&1 || true',
+        fetchImpl
+      )
     )
 
     authOutput = [authOutput, fallback.output].filter(Boolean).join('\n')
