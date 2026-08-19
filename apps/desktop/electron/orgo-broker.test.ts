@@ -400,6 +400,7 @@ test('falls back to tailscale login when up omits the authorization URL', async 
   const status = await beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl)
   assert.equal(status.authUrl, 'https://login.tailscale.com/a/fallback123')
   assert.equal(commands.some(command => command.includes('tailscale login')), true)
+  assert.equal(commands.some(command => command.includes('timeout 12s')), true)
 })
 
 test('reports a missing Tailscale authorization URL instead of silently stalling', async () => {

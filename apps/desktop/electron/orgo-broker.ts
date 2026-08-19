@@ -563,7 +563,7 @@ export async function beginOrgoTailscaleSetup(
     const fallback = await runOrgoBash(
       apiKey,
       computerId,
-      'tailscale login --timeout=10s 2>&1 || true',
+      'command -v timeout >/dev/null 2>&1 && timeout 12s tailscale login 2>&1 || true',
       fetchImpl
     )
 
