@@ -13,10 +13,24 @@ export const ORGO_MCP_TRUST = 'untrusted' as const
 export const ORGO_MCP_COMMAND = 'npx'
 export const ORGO_MCP_ARGS = ['-y', 'orgo-mcp-server']
 export const BOT_ORGO_WORKSPACE_NAME = 'Hermes Bots'
+export const BOT_REMOTE_HERMES_REF = 'ad9e8c9b574ec6937cc09d8901ca83a769225963'
 export const HERMES_ORGO_INSTALL_SH = 'https://hermes-agent.nousresearch.com/install.sh'
 export const HERMES_ORGO_PROBE_COMMAND =
   'command -v hermes >/dev/null 2>&1 && hermes --version'
 export const HERMES_ORGO_INSTALL_COMMAND = `curl -fsSL ${HERMES_ORGO_INSTALL_SH} | bash`
+export const HERMES_ORGO_SSH_COMPATIBILITY_COMMAND = [
+  'help="$(hermes serve --help 2>&1)"',
+  'printf "%s" "$help" | grep -q ssh-session-token-file',
+  'printf "%s" "$help" | grep -q ssh-owner-nonce'
+].join(' && ')
+export const HERMES_ORGO_PINNED_UPDATE_COMMAND = [
+  'project=/usr/local/lib/hermes-agent',
+  'test "$(git -C "$project" remote get-url origin 2>/dev/null)" = "https://github.com/NousResearch/hermes-agent.git" || { echo "Unexpected Hermes source checkout"; exit 1; }',
+  'test -z "$(git -C "$project" status --porcelain --untracked-files=no)" || { echo "Hermes source checkout has local changes"; exit 1; }',
+  `git -C "$project" fetch --depth=1 origin ${BOT_REMOTE_HERMES_REF}`,
+  `git -C "$project" checkout --detach ${BOT_REMOTE_HERMES_REF}`,
+  '"$project/venv/bin/python" -m pip install --disable-pip-version-check --no-input -e "$project"'
+].join('\n')
 export const TAILSCALE_INSTALL_COMMAND = [
   'if ! command -v tailscale >/dev/null 2>&1 || { ! command -v tailscaled >/dev/null 2>&1 && [ ! -x /usr/sbin/tailscaled ]; }; then',
   '  curl -fsSL https://tailscale.com/install.sh | sh',
@@ -450,12 +464,13 @@ export async function runOrgoBash(
   apiKey: string,
   computerId: string,
   command: string,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  timeout = 30
 ): Promise<OrgoBashResult> {
   const payload = await orgoRequest(
     apiKey,
     `/computers/${encodeURIComponent(normalizeOrgoComputerId(computerId))}/bash`,
-    { method: 'POST', body: JSON.stringify({ command }) },
+    { method: 'POST', body: JSON.stringify({ command, timeout }) },
     fetchImpl
   )
 
@@ -630,20 +645,68 @@ export async function ensureHermesInstalledOnOrgo(
   apiKey: string,
   computerId: string,
   fetchImpl: typeof fetch = fetch
-): Promise<{ installed: boolean; installedNow: boolean; output: string; fromTemplate: boolean }> {
+): Promise<{ installed: boolean; installedNow: boolean; updatedNow: boolean; output: string; fromTemplate: boolean }> {
   const computer = await ensureOrgoComputerRunning(apiKey, computerId, fetchImpl)
   const fromTemplate = isHermesAgentTemplate(computer.templateRef)
   const compatibleTemplate = isBotProduct() ? computer.templateRef === BOT_TEMPLATE_REF : fromTemplate
   const probe = await runOrgoBash(apiKey, computerId, HERMES_ORGO_PROBE_COMMAND, fetchImpl)
 
   if (probe.success) {
-    return { installed: true, installedNow: false, fromTemplate, output: probe.output }
+    if (!isBotProduct()) {
+      return { installed: true, installedNow: false, updatedNow: false, fromTemplate, output: probe.output }
+    }
+
+    const compatibility = await runOrgoBash(
+      apiKey,
+      computerId,
+      HERMES_ORGO_SSH_COMPATIBILITY_COMMAND,
+      fetchImpl
+    )
+
+    if (compatibility.success) {
+      return { installed: true, installedNow: false, updatedNow: false, fromTemplate, output: probe.output }
+    }
+
+    const update = await runOrgoBash(
+      apiKey,
+      computerId,
+      HERMES_ORGO_PINNED_UPDATE_COMMAND,
+      fetchImpl,
+      180
+    )
+
+    if (!update.success) {
+      throw new OrgoDesktopError(
+        'unavailable',
+        update.output.trim() || 'Could not update Hermes for secure Desktop SSH.'
+      )
+    }
+
+    const verify = await runOrgoBash(
+      apiKey,
+      computerId,
+      HERMES_ORGO_SSH_COMPATIBILITY_COMMAND,
+      fetchImpl
+    )
+
+    if (!verify.success) {
+      throw new OrgoDesktopError('unavailable', 'The pinned Hermes update does not support secure Desktop SSH.')
+    }
+
+    return {
+      installed: true,
+      installedNow: false,
+      updatedNow: true,
+      fromTemplate,
+      output: update.output || probe.output
+    }
   }
 
   if (compatibleTemplate) {
     return {
       installed: true,
       installedNow: false,
+      updatedNow: false,
       fromTemplate: true,
       output: probe.output || computer.templateRef || BOT_TEMPLATE_REF
     }
@@ -671,7 +734,13 @@ export async function ensureHermesInstalledOnOrgo(
     throw new OrgoDesktopError('unavailable', 'Hermes installed on Orgo but `hermes` is not on PATH.')
   }
 
-  return { installed: true, installedNow: true, fromTemplate: false, output: verify.output || install.output }
+  return {
+    installed: true,
+    installedNow: true,
+    updatedNow: false,
+    fromTemplate: false,
+    output: verify.output || install.output
+  }
 }
 
 /** Place the Orgo credential in the remote Hermes secret environment, never

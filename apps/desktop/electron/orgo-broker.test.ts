@@ -5,6 +5,7 @@ import { test } from 'vitest'
 import {
   beginOrgoTailscaleSetup,
   BOT_ORGO_WORKSPACE_NAME,
+  BOT_REMOTE_HERMES_REF,
   createOrgoComputer,
   doctorOrgoComputer,
   ensureHermesInstalledOnOrgo,
@@ -260,6 +261,46 @@ test('skips the installer when Hermes is already on PATH', async () => {
   const result = await ensureHermesInstalledOnOrgo('orgo-secret', COMPUTER_ID, fetchImpl)
   assert.equal(result.installedNow, false)
   assert.equal(commands.some(command => command.includes('install.sh')), false)
+})
+
+test('updates an incompatible Bot backend to the pinned SSH-compatible revision', async () => {
+  const commands: string[] = []
+  let updated = false
+  let updateTimeout = 0
+
+  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input)
+
+    if (url.endsWith('/bash')) {
+      const body = JSON.parse(String(init?.body || '{}')) as { command?: string; timeout?: number }
+      const command = String(body.command || '')
+      commands.push(command)
+
+      if (command.includes('git -C "$project" fetch')) {
+        updated = true
+        updateTimeout = Number(body.timeout || 0)
+
+        return json({ success: true, exit_code: 0, output: 'Updated pinned Hermes backend' })
+      }
+
+      if (command.includes('ssh-session-token-file')) {
+        return json({ success: true, exit_code: updated ? 0 : 1, output: updated ? 'compatible' : 'incompatible' })
+      }
+
+      return json({ success: true, exit_code: 0, output: 'Hermes Agent v0.16.0' })
+    }
+
+    return json({ id: COMPUTER_ID, name: 'Shared', status: 'running', instance_id: '8b517302' })
+  }) as typeof fetch
+
+  const result = await withBotProduct(() =>
+    ensureHermesInstalledOnOrgo('orgo-secret', COMPUTER_ID, fetchImpl)
+  )
+
+  assert.equal(result.updatedNow, true)
+  assert.equal(updateTimeout, 180)
+  assert.equal(commands.some(command => command.includes(BOT_REMOTE_HERMES_REF)), true)
+  assert.equal(commands.some(command => command.includes('pip install')), true)
 })
 
 test('uses Orgo curated Hermes template and does not reinstall on that snapshot', async () => {

@@ -7349,8 +7349,9 @@ async function orgoTailscaleStatus() {
 }
 
 async function connectHermesThroughOrgoTailscale() {
+  const { apiKey, computerId } = defaultOrgoDesktopCredentials()
   const local = localTailscaleStatus()
-  const remote = await orgoTailscaleStatus()
+  const remote = await getOrgoTailscaleStatus(apiKey, computerId)
 
   if (!local.connected) {
     throw new Error('Sign in to Tailscale on this Mac first.')
@@ -7359,6 +7360,8 @@ async function connectHermesThroughOrgoTailscale() {
   if (!remote.connected || !remote.dnsName) {
     throw new Error('Authorize the shared computer in Tailscale first.')
   }
+
+  const hermes = await ensureHermesInstalledOnOrgo(apiKey, computerId)
 
   const connection = await applyDesktopConnectionConfig({
     mode: 'ssh',
@@ -7373,7 +7376,7 @@ async function connectHermesThroughOrgoTailscale() {
 
   await syncOrgoMcpToProfiles([])
 
-  return { connection, local, remote }
+  return { connection, hermes, local, remote }
 }
 
 async function createOrgoDesktopSession(profile) {

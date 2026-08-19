@@ -133,6 +133,13 @@ declare global {
         tailscaleStatus: () => Promise<DesktopTailscaleStatus>
         connectRemoteHermes: () => Promise<{
           connection: DesktopConnectionConfig
+          hermes: {
+            installed: boolean
+            installedNow: boolean
+            updatedNow: boolean
+            output: string
+            fromTemplate: boolean
+          }
           local: DesktopTailscaleStatus
           remote: DesktopTailscaleStatus
         }>
