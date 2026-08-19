@@ -293,6 +293,10 @@ npx playwright test e2e/bot-product-docs.spec.ts
 
 The Bot release workflow is in `.github/workflows/desktop-bot-release.yml`. It builds the Bot SKU, runs regression coverage, and produces the macOS release artifacts. Signing and notarization require the configured Apple developer secrets.
 
+This release stays on the proven single shared-Orgo architecture. The Orgo template is compatibility-pinned, and generic Hermes client/backend update prompts are disabled in the Bot product; upgrades are shipped as tested Hermes Bots DMGs. Cross-machine Bot Mode is intentionally deferred for the future one-computer-per-bot architecture.
+
+See [`docs/bot-product-release-scope.md`](docs/bot-product-release-scope.md) for the compatibility policy, accepted upstream hardening, deferred work, and release gate.
+
 ## Upstream and license
 
 Hermes Bots is built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research.

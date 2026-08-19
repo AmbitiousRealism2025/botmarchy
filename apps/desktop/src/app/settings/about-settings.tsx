@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { type Translations, useI18n } from '@/i18n'
 import { CheckCircle2, ExternalLink, Loader2, RefreshCw } from '@/lib/icons'
+import { allowsGenericHermesUpdates, isBotProduct } from '@/lib/product'
 import { cn } from '@/lib/utils'
 import {
   $desktopVersion,
@@ -21,7 +22,8 @@ import {
 import { ListRow, SectionHeading, SettingsContent } from './primitives'
 import { UninstallSection } from './uninstall-section'
 
-const RELEASE_NOTES_URL = 'https://github.com/NousResearch/hermes-agent/releases'
+const HERMES_RELEASE_NOTES_URL = 'https://github.com/NousResearch/hermes-agent/releases'
+const BOT_RELEASE_NOTES_URL = 'https://github.com/nickvasilescu/hermes-bots/releases'
 
 function relativeTime(ms: number | undefined, a: Translations['settings']['about']) {
   if (!ms) {
@@ -53,6 +55,8 @@ export function AboutSettings() {
   const apply = useStore($updateApply)
   const checking = useStore($updateChecking)
   const [justChecked, setJustChecked] = useState(false)
+  const genericUpdates = allowsGenericHermesUpdates()
+  const releaseNotesUrl = isBotProduct() ? BOT_RELEASE_NOTES_URL : HERMES_RELEASE_NOTES_URL
 
   // The version atom is loaded once at app boot, which makes About show a
   // stale number after a self-update (the running binary is current, the
@@ -75,7 +79,9 @@ export function AboutSettings() {
   let statusLine: string
   let statusTone: 'idle' | 'available' | 'error' = 'idle'
 
-  if (!supported) {
+  if (!genericUpdates) {
+    statusLine = 'Updates are delivered as tested Hermes Bots DMGs.'
+  } else if (!supported) {
     statusLine = status?.message ?? a.cantUpdate
     statusTone = 'error'
   } else if (status?.error) {
@@ -125,24 +131,27 @@ export function AboutSettings() {
             <div className="min-w-0">
               <p className="font-medium">{statusLine}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {a.lastChecked(relativeTime(status?.fetchedAt, a))}
-                {justChecked && !checking ? a.justNowSuffix : ''}
+                {genericUpdates
+                  ? `${a.lastChecked(relativeTime(status?.fetchedAt, a))}${justChecked && !checking ? a.justNowSuffix : ''}`
+                  : 'Install a new release DMG only after its compatibility with your cloud runtime is verified.'}
               </p>
             </div>
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-4">
-            <Button
-              disabled={checking || applying || !supported}
-              onClick={() => void handleCheck()}
-              size="sm"
-              variant="textStrong"
-            >
-              {checking ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
-              {checking ? a.checking : a.checkNow}
-            </Button>
+            {genericUpdates && (
+              <Button
+                disabled={checking || applying || !supported}
+                onClick={() => void handleCheck()}
+                size="sm"
+                variant="textStrong"
+              >
+                {checking ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
+                {checking ? a.checking : a.checkNow}
+              </Button>
+            )}
 
-            {behind > 0 && supported && !applying && (
+            {genericUpdates && behind > 0 && supported && !applying && (
               <>
                 <Button onClick={() => startActiveUpdate()} size="sm">
                   {a.updateNow}
@@ -155,10 +164,10 @@ export function AboutSettings() {
 
             <Button asChild className="ml-auto" size="sm" variant="text">
               <a
-                href={RELEASE_NOTES_URL}
+                href={releaseNotesUrl}
                 onClick={event => {
                   event.preventDefault()
-                  void window.hermesDesktop?.openExternal?.(RELEASE_NOTES_URL)
+                  void window.hermesDesktop?.openExternal?.(releaseNotesUrl)
                 }}
                 rel="noreferrer"
                 target="_blank"
@@ -170,11 +179,13 @@ export function AboutSettings() {
           </div>
         </div>
 
-        <ListRow
-          description={a.automaticUpdatesDesc}
-          hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}
-          title={a.automaticUpdates}
-        />
+        {genericUpdates && (
+          <ListRow
+            description={a.automaticUpdatesDesc}
+            hint={a.branchCommit(status?.branch ?? 'unknown', status?.currentSha?.slice(0, 7) ?? 'unknown')}
+            title={a.automaticUpdates}
+          />
+        )}
 
         <UninstallSection />
       </div>

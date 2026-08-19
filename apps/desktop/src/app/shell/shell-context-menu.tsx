@@ -5,6 +5,7 @@ import { hasTextSelection } from '@/components/assistant-ui/thread/user-message'
 import { ActionsContextMenu, type MenuKit, renderActionItem } from '@/components/ui/actions-menu'
 import { useI18n } from '@/i18n'
 import { isEditableTarget } from '@/lib/keybinds/combo'
+import { allowsGenericHermesUpdates } from '@/lib/product'
 import { openCommandPalette } from '@/store/command-palette'
 import { toggleStatusbarVisible } from '@/store/statusbar-prefs'
 import { requestActiveUpdate } from '@/store/updates'
@@ -57,12 +58,16 @@ export function ShellContextMenu({ children }: { children: React.ReactNode }) {
         label: t.commandCenter.settings,
         onSelect: () => navigateToWorkspacePage(navigate, SETTINGS_ROUTE)
       })}
-      <kit.Separator />
-      {renderActionItem(kit, {
-        icon: 'cloud-download',
-        label: t.commandCenter.updateHermes,
-        onSelect: requestActiveUpdate
-      })}
+      {allowsGenericHermesUpdates() && (
+        <>
+          <kit.Separator />
+          {renderActionItem(kit, {
+            icon: 'cloud-download',
+            label: t.commandCenter.updateHermes,
+            onSelect: requestActiveUpdate
+          })}
+        </>
+      )}
     </>
   )
 

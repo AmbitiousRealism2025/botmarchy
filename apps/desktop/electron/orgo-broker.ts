@@ -5,7 +5,7 @@ import {
   type OrgoDesktopErrorCode,
   serializeOrgoDesktopError
 } from './orgo-desktop'
-import { BOT_TEMPLATE_REF } from './product'
+import { BOT_TEMPLATE_REF, isBotProduct } from './product'
 
 export const ORGO_API_BASE = 'https://www.orgo.ai/api'
 export const ORGO_MCP_SERVER_NAME = 'orgo'
@@ -238,7 +238,14 @@ export function isHermesAgentTemplate(ref: string | undefined): boolean {
   return /^system\/hermes-agent@/i.test(String(ref || '').trim())
 }
 
-export function pickSharedHermesComputer(computers: OrgoComputerSummary[]): OrgoComputerSummary | undefined {
+export function pickSharedHermesComputer(
+  computers: OrgoComputerSummary[],
+  exactTemplateRef?: string
+): OrgoComputerSummary | undefined {
+  if (exactTemplateRef) {
+    return computers.find(computer => computer.templateRef === exactTemplateRef)
+  }
+
   return computers.find(computer => isHermesAgentTemplate(computer.templateRef)) || computers[0]
 }
 
@@ -282,6 +289,10 @@ export async function resolveHermesAgentTemplateRef(
   apiKey: string,
   fetchImpl: typeof fetch = fetch
 ): Promise<string> {
+  if (isBotProduct()) {
+    return BOT_TEMPLATE_REF
+  }
+
   try {
     const payload = await orgoRequest(apiKey, '/templates/global', {}, fetchImpl)
 
@@ -520,19 +531,27 @@ export async function ensureHermesInstalledOnOrgo(
 ): Promise<{ installed: boolean; installedNow: boolean; output: string; fromTemplate: boolean }> {
   const computer = await ensureOrgoComputerRunning(apiKey, computerId, fetchImpl)
   const fromTemplate = isHermesAgentTemplate(computer.templateRef)
+  const compatibleTemplate = isBotProduct() ? computer.templateRef === BOT_TEMPLATE_REF : fromTemplate
   const probe = await runOrgoBash(apiKey, computerId, HERMES_ORGO_PROBE_COMMAND, fetchImpl)
 
   if (probe.success) {
     return { installed: true, installedNow: false, fromTemplate, output: probe.output }
   }
 
-  if (fromTemplate) {
+  if (compatibleTemplate) {
     return {
       installed: true,
       installedNow: false,
       fromTemplate: true,
       output: probe.output || computer.templateRef || BOT_TEMPLATE_REF
     }
+  }
+
+  if (isBotProduct()) {
+    throw new OrgoDesktopError(
+      'unavailable',
+      `Hermes Bots will not install an unpinned Hermes build. Use the ${BOT_TEMPLATE_REF} Orgo template or select a computer that already has Hermes installed.`
+    )
   }
 
   const install = await runOrgoBash(apiKey, computerId, HERMES_ORGO_INSTALL_COMMAND, fetchImpl)

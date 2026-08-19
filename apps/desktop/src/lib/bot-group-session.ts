@@ -42,6 +42,7 @@ export function resolveGroupSessionBinding(input: GroupSessionBindingInput): Gro
     navigationTarget,
     isDraft
   } = input
+
   const roster = groups && typeof groups === 'object' ? groups : {}
   const found = Object.values(roster).find(item => item && item.sessionId === storedId)
 

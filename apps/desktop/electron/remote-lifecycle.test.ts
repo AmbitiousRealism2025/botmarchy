@@ -268,6 +268,14 @@ test('pidIsOurDashboard requires the exact serve ownership nonce', async () => {
   assert.equal(await pidIsOurDashboard(fakeSsh([[/print\("OWNED"/, 'FOREIGN\n']]), 5, SPAWN_NONCE, '/x/hermes'), false)
 })
 
+test('pidIsOurDashboard treats a pid that disappears during ps fallback as foreign', async () => {
+  const ssh = fakeSsh([[/print\("OWNED"/, 'FOREIGN\n']])
+
+  assert.equal(await pidIsOurDashboard(ssh, 5, SPAWN_NONCE, '/x/hermes'), false)
+  assert.match(ssh.calls[0] || '', /subprocess\.CalledProcessError/)
+  assert.match(ssh.calls[0] || '', /sys\.exit\(0\)/)
+})
+
 test('cleanupStale kills ONLY a provably-ours pid, always drops the lockfile', async () => {
   const notOurs = fakeSsh([[/print\("OWNED"/, 'FOREIGN\n']])
   await cleanupStale(notOurs, OWNERSHIP_ID, {

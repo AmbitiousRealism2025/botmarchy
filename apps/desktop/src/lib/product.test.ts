@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { BOT_PROVIDER_IDS, filterBotProviders, isBotProduct, isBotProviderId } from './product'
+import {
+  allowsGenericHermesUpdates,
+  BOT_PROVIDER_IDS,
+  BOT_UPDATE_POLICY,
+  filterBotProviders,
+  isBotProduct,
+  isBotProviderId
+} from './product'
 
 describe('bot product providers', () => {
   it('recognizes Codex and Grok only', () => {
@@ -14,5 +21,10 @@ describe('bot product providers', () => {
     const providers = [{ id: 'nous' }, { id: 'openai-codex' }, { id: 'xai-oauth' }]
     const filtered = isBotProduct() ? filterBotProviders(providers) : providers.filter(p => isBotProviderId(p.id))
     expect(filtered.map(p => p.id)).toEqual(['openai-codex', 'xai-oauth'])
+  })
+
+  it('uses release-level updates for the Bot SKU', () => {
+    expect(BOT_UPDATE_POLICY).toBe('release-dmg')
+    expect(allowsGenericHermesUpdates()).toBe(!isBotProduct())
   })
 })

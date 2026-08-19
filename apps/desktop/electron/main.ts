@@ -184,6 +184,7 @@ import {
   beginOrgoTailscaleSetup,
   createOrgoComputer,
   createOrgoWorkspace,
+  doctorOrgoComputer,
   ensureHermesInstalledOnOrgo,
   ensureOrgoComputerRunning,
   getOrgoTailscaleStatus,
@@ -206,7 +207,14 @@ import {
 import { createKeepAwake } from './power-save'
 import { FirstRunSetupResetError, runPrimaryBackendStartup } from './primary-backend-startup'
 import { rehomePrimaryConnection } from './primary-connection-rehome'
-import { applyDesktopProductIdentity, desktopAppId, desktopAppName, isBotProduct } from './product'
+import {
+  allowsGenericHermesUpdates,
+  applyDesktopProductIdentity,
+  BOT_TEMPLATE_REF,
+  desktopAppId,
+  desktopAppName,
+  isBotProduct
+} from './product'
 import { decideProfileDeleteAction, profileNameFromDeleteRequest, resolveRouteProfile } from './profile-delete-routing'
 import { fetchPrimaryProfileSessions } from './profile-session-routing'
 import { createQuickEntryShortcut, quickEntryWindowBounds, sanitizeQuickEntrySettings } from './quick-entry'
@@ -5284,7 +5292,7 @@ function buildApplicationMenu() {
       label: APP_NAME,
       submenu: [
         { label: `About ${APP_NAME}`, click: () => showAboutPanelFresh() },
-        checkForUpdatesItem,
+        ...(allowsGenericHermesUpdates() ? [checkForUpdatesItem] : []),
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
@@ -5384,11 +5392,14 @@ function buildApplicationMenu() {
       ? [{ role: 'minimize' }, { role: 'zoom' }, { role: 'front' }]
       : [{ role: 'minimize' }, { role: 'close' }]
   })
-  template.push({
-    label: 'Help',
-    role: 'help',
-    submenu: [checkForUpdatesItem]
-  })
+
+  if (allowsGenericHermesUpdates()) {
+    template.push({
+      label: 'Help',
+      role: 'help',
+      submenu: [checkForUpdatesItem]
+    })
+  }
 
   return Menu.buildFromTemplate(template)
 }
@@ -7219,7 +7230,7 @@ async function provisionOrgoSharedComputer() {
 
   if (!computerId) {
     const computers = await listOrgoComputers(apiKey, workspaceId)
-    const existing = pickSharedHermesComputer(computers)
+    const existing = pickSharedHermesComputer(computers, isBotProduct() ? BOT_TEMPLATE_REF : undefined)
     const templateRef = await resolveHermesAgentTemplateRef(apiKey)
 
     const computer =
@@ -12590,26 +12601,44 @@ ipcMain.handle('hermes:terminal:cwd', async (_event, id) => {
 ipcMain.handle('hermes:terminal:dispose', (_event, id) => disposeTerminalSession(String(id || '')))
 
 ipcMain.handle('hermes:updates:check', async () =>
-  checkUpdates().catch(error => ({
+  !allowsGenericHermesUpdates()
+    ? {
+        supported: false,
+        message: 'Updates are delivered as tested Hermes Bots releases.',
+        fetchedAt: Date.now()
+      }
+    : checkUpdates().catch(error => ({
     supported: true,
     branch: readDesktopUpdateConfig().branch,
     error: 'check-failed',
     message: error?.message || String(error),
     fetchedAt: Date.now()
-  }))
+      }))
 )
 
 ipcMain.handle('hermes:updates:apply', async (_event, payload) =>
-  applyUpdates(payload || {}).catch(error => ({
-    ok: false,
-    error: 'apply-failed',
-    message: error?.message || String(error)
-  }))
+  !allowsGenericHermesUpdates()
+    ? {
+        ok: false,
+        error: 'unavailable',
+        message: 'Install a tested Hermes Bots DMG to update this product.'
+      }
+    : applyUpdates(payload || {}).catch(error => ({
+        ok: false,
+        error: 'apply-failed',
+        message: error?.message || String(error)
+      }))
 )
 
-ipcMain.handle('hermes:updates:branch:get', async () => readDesktopUpdateConfig())
+ipcMain.handle('hermes:updates:branch:get', async () =>
+  allowsGenericHermesUpdates() ? readDesktopUpdateConfig() : { branch: 'hermes-bots-release' }
+)
 
 ipcMain.handle('hermes:updates:branch:set', async (_event, name) => {
+  if (!allowsGenericHermesUpdates()) {
+    return { branch: 'hermes-bots-release' }
+  }
+
   const branch = typeof name === 'string' && name.trim() ? name.trim() : DEFAULT_UPDATE_BRANCH
   writeDesktopUpdateConfig({ branch })
 

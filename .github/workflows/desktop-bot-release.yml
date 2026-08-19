@@ -85,11 +85,25 @@ jobs:
         with:
           command: uv sync --locked --python 3.11 --extra all --extra dev
 
-      - name: Run Bot SKU unit + e2e smoke
+      - name: Run Bot SKU quality gate
+        working-directory: apps/desktop
+        run: |
+          npm run typecheck
+          npm run lint
+          npx vitest run --project ui \
+            src/store/updates.test.ts \
+            src/lib/product.test.ts \
+            src/lib/bot-group-session.test.ts \
+            src/lib/bot-group-chat.test.ts \
+            src/app/bot-product/setup-overlay.test.ts \
+            src/app/contrib/controller-titlebar.test.ts \
+            src/app/connectors/mcp.test.ts
+          npm run test:desktop:platforms
+
+      - name: Run Bot SKU packaged E2E
         working-directory: apps/desktop
         env:
           HERMES_DESKTOP_PRODUCT: bot
           VITE_HERMES_DESKTOP_PRODUCT: bot
         run: |
-          npm run test:desktop:platforms
           xvfb-run --auto-servernum npm run test:e2e:bot

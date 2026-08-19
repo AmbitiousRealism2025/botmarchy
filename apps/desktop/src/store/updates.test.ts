@@ -31,6 +31,12 @@ vi.mock('@/store/notifications', () => ({
   dismissNotification: (...args: unknown[]) => dismissSpy(...args)
 }))
 
+let botProduct = false
+
+vi.mock('@/lib/product', () => ({
+  allowsGenericHermesUpdates: () => !botProduct
+}))
+
 const checkHermesUpdateSpy = vi.fn()
 const updateHermesSpy = vi.fn()
 const getActionStatusSpy = vi.fn()
@@ -44,6 +50,7 @@ vi.mock('@/hermes', () => ({
 const {
   maybeNotifyUpdateAvailable,
   checkBackendUpdates,
+  checkUpdates,
   $backendUpdateStatus,
   applyBackendUpdate,
   $backendUpdateApply,
@@ -122,6 +129,61 @@ describe('maybeNotifyUpdateAvailable', () => {
   it('does nothing when already up to date', () => {
     maybeNotifyUpdateAvailable(status({ behind: 0 }))
     expect(notifySpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('Bot release update policy', () => {
+  beforeEach(() => {
+    botProduct = true
+    notifySpy.mockClear()
+    checkHermesUpdateSpy.mockReset()
+    updateHermesSpy.mockReset()
+    $updateStatus.set(status())
+    $backendUpdateStatus.set(status())
+    $updateOverlayOpen.set(false)
+    setRemote(true)
+    ;(globalThis as unknown as { window: unknown }).window = {
+      hermesDesktop: {
+        updates: {
+          apply: vi.fn(),
+          check: vi.fn(),
+          onProgress: vi.fn()
+        }
+      }
+    }
+  })
+
+  afterEach(() => {
+    botProduct = false
+    setRemote(false)
+    delete (globalThis as unknown as { window?: unknown }).window
+  })
+
+  it('does not check or advertise generic client or backend updates', async () => {
+    maybeNotifyUpdateAvailable(status())
+
+    expect(await checkUpdates()).toBeNull()
+    expect(await checkBackendUpdates()).toBeNull()
+    expect(notifySpy).not.toHaveBeenCalled()
+    expect(checkHermesUpdateSpy).not.toHaveBeenCalled()
+    expect($updateStatus.get()).toBeNull()
+    expect($backendUpdateStatus.get()).toBeNull()
+  })
+
+  it('blocks direct generic update apply requests', async () => {
+    const clientResult = await applyUpdates()
+    const backendResult = await applyBackendUpdate()
+
+    expect(clientResult).toMatchObject({ ok: false, error: 'unavailable' })
+    expect(backendResult).toMatchObject({ ok: false, error: 'unavailable' })
+    expect(updateHermesSpy).not.toHaveBeenCalled()
+  })
+
+  it('keeps the generic update overlay closed', () => {
+    requestActiveUpdate()
+
+    expect($updateOverlayOpen.get()).toBe(false)
+    expect(updateHermesSpy).not.toHaveBeenCalled()
   })
 })
 

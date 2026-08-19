@@ -8,8 +8,8 @@ import { Progress } from '@/components/ui/progress'
 import { getGlobalModelOptions } from '@/hermes'
 import { useI18n } from '@/i18n'
 import { Check, ChevronDown, ChevronLeft, KeyRound, Loader2 } from '@/lib/icons'
+import { filterBotProviders, isBotProduct } from '@/lib/product'
 import { isProviderSetupErrorMessage } from '@/lib/provider-setup-errors'
-import { isBotProduct, filterBotProviders } from '@/lib/product'
 import { cn } from '@/lib/utils'
 import { $desktopBoot, type DesktopBootState } from '@/store/boot'
 import {
@@ -436,8 +436,10 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
 
   const ordered = useMemo(() => {
     const list = providers ? sortProviders(providers) : []
+
     return isBotProduct() ? filterBotProviders(list) : list
   }, [providers])
+
   const hasOauth = ordered.length > 0
   const apiKeyOptions = useApiKeyCatalog()
 

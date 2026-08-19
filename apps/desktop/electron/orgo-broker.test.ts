@@ -18,6 +18,7 @@ import {
   pickSharedHermesComputer,
   resolveHermesAgentTemplateRef
 } from './orgo-broker'
+import { BOT_TEMPLATE_REF } from './product'
 
 const COMPUTER_ID = 'ef2f6e29-3864-494b-a82c-15280c5d9f9e'
 const WORKSPACE_ID = 'ws-shared'
@@ -25,6 +26,24 @@ const WORKSPACE_ID = 'ws-shared'
 function json(data: unknown, status = 200) {
   return Response.json(data, { status })
 }
+
+async function withDesktopProduct<T>(product: 'bot' | 'hermes', run: () => Promise<T>): Promise<T> {
+  const previous = process.env.HERMES_DESKTOP_PRODUCT
+  process.env.HERMES_DESKTOP_PRODUCT = product
+
+  try {
+    return await run()
+  } finally {
+    if (previous === undefined) {
+      delete process.env.HERMES_DESKTOP_PRODUCT
+    } else {
+      process.env.HERMES_DESKTOP_PRODUCT = previous
+    }
+  }
+}
+
+const withBotProduct = <T>(run: () => Promise<T>) => withDesktopProduct('bot', run)
+const withHermesProduct = <T>(run: () => Promise<T>) => withDesktopProduct('hermes', run)
 
 test('MCP entry references the process env instead of copying the API key', () => {
   const entry = orgoMcpEntry(COMPUTER_ID)
@@ -74,6 +93,21 @@ test('creates a computer from the curated template', async () => {
   const computer = await createOrgoComputer('orgo-secret', { workspaceId: WORKSPACE_ID }, fetchImpl)
   assert.equal(computer.id, COMPUTER_ID)
   assert.match(body, /system\/hermes-agent@1\.0\.0/)
+})
+
+test('pins the Bot product to its tested Orgo template', async () => {
+  let requested = false
+
+  const result = await withBotProduct(() =>
+    resolveHermesAgentTemplateRef('orgo-secret', (async () => {
+      requested = true
+
+      return json({ templates: [{ ref: 'system/hermes-agent@9.9.9' }] })
+    }) as typeof fetch)
+  )
+
+  assert.equal(result, BOT_TEMPLATE_REF)
+  assert.equal(requested, false)
 })
 
 test('ensure-running starts a stopped computer then waits for running', async () => {
@@ -155,10 +189,36 @@ test('installs Hermes on a computer that does not have it yet', async () => {
     return json({ id: COMPUTER_ID, name: 'Shared', status: 'running', instance_id: '8b517302' })
   }) as typeof fetch
 
-  const result = await ensureHermesInstalledOnOrgo('orgo-secret', COMPUTER_ID, fetchImpl)
+  const result = await withHermesProduct(() =>
+    ensureHermesInstalledOnOrgo('orgo-secret', COMPUTER_ID, fetchImpl)
+  )
+
   assert.equal(result.installed, true)
   assert.equal(result.installedNow, true)
   assert.equal(commands.some(command => command.includes('install.sh')), true)
+})
+
+test('does not install an unpinned latest Hermes build in the Bot product', async () => {
+  const commands: string[] = []
+
+  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input)
+
+    if (url.endsWith('/bash')) {
+      const body = JSON.parse(String(init?.body || '{}')) as { command?: string }
+      commands.push(String(body.command || ''))
+
+      return json({ success: true, exit_code: 127, output: 'hermes: not found' })
+    }
+
+    return json({ id: COMPUTER_ID, name: 'Shared', status: 'running', instance_id: '8b517302' })
+  }) as typeof fetch
+
+  await assert.rejects(
+    () => withBotProduct(() => ensureHermesInstalledOnOrgo('orgo-secret', COMPUTER_ID, fetchImpl)),
+    /will not install an unpinned Hermes build/
+  )
+  assert.equal(commands.some(command => command.includes('install.sh')), false)
 })
 
 test('skips the installer when Hermes is already on PATH', async () => {
@@ -211,13 +271,23 @@ test('uses Orgo curated Hermes template and does not reinstall on that snapshot'
     })
   }) as typeof fetch
 
-  assert.equal(await resolveHermesAgentTemplateRef('orgo-secret', fetchImpl), 'system/hermes-agent@1.1.0')
+  assert.equal(
+    await withHermesProduct(() => resolveHermesAgentTemplateRef('orgo-secret', fetchImpl)),
+    'system/hermes-agent@1.1.0'
+  )
   assert.equal(
     pickSharedHermesComputer([
       { id: 'aaaaaaaa-3864-494b-a82c-15280c5d9f9e', name: 'Claude', status: 'running', templateRef: 'system/claude-code@1.0.0' },
       { id: COMPUTER_ID, name: 'Hermes', status: 'running', templateRef: 'system/hermes-agent@1.0.0' }
     ])?.id,
     COMPUTER_ID
+  )
+  assert.equal(
+    pickSharedHermesComputer(
+      [{ id: COMPUTER_ID, name: 'Newer Hermes', status: 'running', templateRef: 'system/hermes-agent@1.1.0' }],
+      BOT_TEMPLATE_REF
+    ),
+    undefined
   )
 
   const result = await ensureHermesInstalledOnOrgo('orgo-secret', COMPUTER_ID, fetchImpl)

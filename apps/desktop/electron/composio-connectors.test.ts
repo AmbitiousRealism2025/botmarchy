@@ -397,6 +397,7 @@ test('consumer ck_ keys validate against Connect MCP and skip the project SDK', 
     store: createComposioStore(disk.io),
     createClient: async () => {
       sdkCalls.push('create')
+
       return fakeClient({ failValidate: true })
     },
     createConnectClient: () => ({
@@ -427,6 +428,7 @@ test('consumer ck_ keys validate against Connect MCP and skip the project SDK', 
 
 test('invalid consumer keys are not persisted', async () => {
   const disk = createFakeDisk()
+
   const broker = createComposioBroker({
     store: createComposioStore(disk.io),
     createClient: async () => fakeClient(),

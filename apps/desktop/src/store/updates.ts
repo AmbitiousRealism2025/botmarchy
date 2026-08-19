@@ -15,6 +15,7 @@ import type {
 } from '@/global'
 import { checkHermesUpdate, getActionStatus, updateHermes } from '@/hermes'
 import { translateNow } from '@/i18n'
+import { allowsGenericHermesUpdates } from '@/lib/product'
 import { persistString, storedString } from '@/lib/storage'
 import { dismissNotification, notify } from '@/store/notifications'
 import { $connection } from '@/store/session'
@@ -59,6 +60,10 @@ export const $updateOverlayTarget = atom<UpdateTarget>('client')
 export const setUpdateOverlayOpen = (open: boolean) => $updateOverlayOpen.set(open)
 
 export const openUpdateOverlayFor = (target: UpdateTarget) => {
+  if (!allowsGenericHermesUpdates()) {
+    return
+  }
+
   $updateOverlayTarget.set(target)
   $updateOverlayOpen.set(true)
   void (target === 'backend' ? checkBackendUpdates() : checkUpdates())
@@ -158,13 +163,15 @@ export function reportBackendContract(contract: number | undefined): void {
   }
 
   notify({
-    action: {
-      label: translateNow('notifications.updateHermes'),
-      onClick: () => {
-        snoozeSkewToast()
-        void applyBackendUpdate()
-      }
-    },
+    action: allowsGenericHermesUpdates()
+      ? {
+          label: translateNow('notifications.updateHermes'),
+          onClick: () => {
+            snoozeSkewToast()
+            void applyBackendUpdate()
+          }
+        }
+      : undefined,
     durationMs: 0,
     id: SKEW_TOAST_ID,
     kind: 'warning',
@@ -202,6 +209,10 @@ export function reportInstallMethodWarning(message: string | undefined): void {
  * on every new commit. The snooze is persisted, so it survives relaunches too.
  */
 export function maybeNotifyUpdateAvailable(status: DesktopUpdateStatus | null) {
+  if (!allowsGenericHermesUpdates()) {
+    return
+  }
+
   if (!status || status.supported === false || status.error || !status.targetSha) {
     return
   }
@@ -250,6 +261,10 @@ export function openUpdatesWindow(): void {
  * only be able to open the changelog overlay.
  */
 export function startActiveUpdate(): void {
+  if (!allowsGenericHermesUpdates()) {
+    return
+  }
+
   const target: UpdateTarget = isRemoteMode() ? 'backend' : 'client'
   $updateOverlayTarget.set(target)
   $updateOverlayOpen.set(true)
@@ -263,6 +278,10 @@ export function startActiveUpdate(): void {
  * check answer, and only apply when there's something to install.
  */
 export function requestActiveUpdate(): void {
+  if (!allowsGenericHermesUpdates()) {
+    return
+  }
+
   const target: UpdateTarget = isRemoteMode() ? 'backend' : 'client'
   const status = target === 'backend' ? $backendUpdateStatus.get() : $updateStatus.get()
 
@@ -323,6 +342,12 @@ function mapBackendCheck(res: BackendUpdateCheckResponse): DesktopUpdateStatus {
 }
 
 export async function checkBackendUpdates(): Promise<DesktopUpdateStatus | null> {
+  if (!allowsGenericHermesUpdates()) {
+    $backendUpdateStatus.set(null)
+
+    return null
+  }
+
   if (!isRemoteMode() || $backendUpdateChecking.get()) {
     return $backendUpdateStatus.get()
   }
@@ -352,6 +377,12 @@ export async function checkBackendUpdates(): Promise<DesktopUpdateStatus | null>
 }
 
 export async function checkUpdates(): Promise<DesktopUpdateStatus | null> {
+  if (!allowsGenericHermesUpdates()) {
+    $updateStatus.set(null)
+
+    return null
+  }
+
   const bridge = window.hermesDesktop?.updates
 
   if (!bridge || $updateChecking.get()) {
@@ -387,6 +418,14 @@ export async function checkUpdates(): Promise<DesktopUpdateStatus | null> {
 }
 
 export async function applyUpdates(opts: DesktopUpdateApplyOptions = {}): Promise<DesktopUpdateApplyResult> {
+  if (!allowsGenericHermesUpdates()) {
+    return {
+      ok: false,
+      error: 'unavailable',
+      message: 'Install a tested Hermes Bots DMG to update this product.'
+    }
+  }
+
   const bridge = window.hermesDesktop?.updates
 
   if (!bridge) {
@@ -681,6 +720,14 @@ async function runBackendUpdate(): Promise<DesktopUpdateApplyResult> {
 }
 
 export function applyBackendUpdate(): Promise<DesktopUpdateApplyResult> {
+  if (!allowsGenericHermesUpdates()) {
+    return Promise.resolve({
+      ok: false,
+      error: 'unavailable',
+      message: 'Backend updates are managed by Hermes Bots releases.'
+    })
+  }
+
   if (backendUpdateInFlight) {
     return backendUpdateInFlight
   }
@@ -725,6 +772,12 @@ let lastConnectionMode: string | undefined
 /** Wire up background polling + progress streaming. Idempotent. */
 export function startUpdatePoller(): void {
   if (pollerStarted || typeof window === 'undefined') {
+    return
+  }
+
+  if (!allowsGenericHermesUpdates()) {
+    void refreshDesktopVersion()
+
     return
   }
 

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Tip, TipKeybindLabel } from '@/components/ui/tooltip'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
+import { isBotProduct } from '@/lib/product'
 import { cn } from '@/lib/utils'
 import { $hapticsMuted, toggleHapticsMuted } from '@/store/haptics'
 import { toggleHud } from '@/store/hud'
@@ -20,7 +21,6 @@ import {
   toggleSidebarOpen
 } from '@/store/layout'
 
-import { isBotProduct } from '@/lib/product'
 import { $orgoDesktopOpen, requestOrgoDesktopSettings, setOrgoDesktopOpen } from '../right-sidebar/store'
 import { appViewForPath, isOverlayView } from '../routes'
 

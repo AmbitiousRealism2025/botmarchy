@@ -951,17 +951,30 @@ test('coerceDesktopConnectionConfig routes token persistence through resolvePers
 
 test('connection-config save and apply IPC handlers route payloads through coerceDesktopConnectionConfig', () => {
   const source = readMain()
+  const saveStart = source.indexOf("ipcMain.handle('hermes:connection-config:save'")
+  const applyStart = source.indexOf("ipcMain.handle('hermes:connection-config:apply'")
+  const applyHelperStart = source.indexOf('async function applyDesktopConnectionConfig(payload)')
 
-  for (const channel of ['hermes:connection-config:save', 'hermes:connection-config:apply']) {
-    const handlerStart = source.indexOf(`ipcMain.handle('${channel}'`)
-    assert.notEqual(handlerStart, -1, `${channel} handler must exist`)
-    const handlerBody = source.slice(handlerStart, handlerStart + 400)
-    assert.match(
-      handlerBody,
-      /coerceDesktopConnectionConfig\(payload\)/,
-      `${channel} must coerce its payload (the propagation seam) before persisting`
-    )
-  }
+  assert.notEqual(saveStart, -1, 'hermes:connection-config:save handler must exist')
+  assert.match(
+    source.slice(saveStart, saveStart + 400),
+    /coerceDesktopConnectionConfig\(payload\)/,
+    'save must coerce its payload before persisting'
+  )
+
+  assert.notEqual(applyStart, -1, 'hermes:connection-config:apply handler must exist')
+  assert.match(
+    source.slice(applyStart, applyStart + 200),
+    /applyDesktopConnectionConfig\(payload\)/,
+    'apply must route through the shared connection apply helper'
+  )
+
+  assert.notEqual(applyHelperStart, -1, 'the shared connection apply helper must exist')
+  assert.match(
+    source.slice(applyHelperStart, applyHelperStart + 400),
+    /coerceDesktopConnectionConfig\(payload\)[\s\S]*writeDesktopConnectionConfig\(config\)/,
+    'the shared apply helper must coerce before persisting'
+  )
 })
 
 test('whenReady enables basic password-store encryption before createWindow', () => {

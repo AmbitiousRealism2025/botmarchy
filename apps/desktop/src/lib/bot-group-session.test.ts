@@ -42,6 +42,7 @@ describe('resolveGroupSessionBinding', () => {
     })
 
     expect(next.action).toBe('bind')
+
     if (next.action === 'bind') {
       expect(next.sessionId).toBe('stored-b')
     }

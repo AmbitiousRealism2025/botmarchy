@@ -1,3 +1,4 @@
+import plugin from '@bot-mode/plugin'
 /**
  * First-party Bot Mode. The live UI still lives in the hermes-bots desktop
  * plugin so runtime hot-reload keeps working during development. Packaged Bot
@@ -5,8 +6,6 @@
  * or “Reload desktop plugins.”
  */
 import type { HermesPlugin } from '@hermes/plugin-sdk'
-
-import plugin from '@bot-mode/plugin'
 
 const bundled: HermesPlugin = {
   ...plugin,

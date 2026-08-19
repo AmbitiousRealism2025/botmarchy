@@ -1,11 +1,18 @@
 /** Build-time product SKU. Generic Hermes Desktop stays the default so
  *  existing packs keep working; Bot builds set `VITE_HERMES_DESKTOP_PRODUCT=bot`. */
 export const BOT_PROVIDER_IDS = ['openai-codex', 'xai-oauth'] as const
+export const BOT_UPDATE_POLICY = 'release-dmg' as const
 
 export type BotProviderId = (typeof BOT_PROVIDER_IDS)[number]
 
 export function isBotProduct(): boolean {
   return import.meta.env.VITE_HERMES_DESKTOP_PRODUCT === 'bot'
+}
+
+/** Bot releases test the desktop against a pinned compatible remote backend.
+ * Never route this SKU through generic Hermes update endpoints. */
+export function allowsGenericHermesUpdates(): boolean {
+  return !isBotProduct()
 }
 
 export function isBotProviderId(id: string): boolean {
