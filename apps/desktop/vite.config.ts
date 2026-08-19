@@ -15,17 +15,18 @@ const real = (p: string): string | null => {
   }
 }
 
-const botModeDiskPlugin = path.resolve(__dirname, '../../../desktop-plugins/hermes-bots/plugin.js')
-const botModeBundledPlugin = path.resolve(__dirname, './src/plugins/hermes-bots/legacy-plugin.js')
-const botModePlugin = fs.existsSync(botModeDiskPlugin) ? botModeDiskPlugin : botModeBundledPlugin
+// Always build the tracked first-party copy. Falling back to a machine-local
+// desktop plugin made local builds pass while clean checkouts and CI were
+// missing the actual Bot interface.
+const botModePlugin = path.resolve(import.meta.dirname, './src/plugins/hermes-bots/legacy-plugin.js')
 
 const fsAllow = [
   ...new Set(
     [
-      path.resolve(__dirname, '../..'),
+      path.resolve(import.meta.dirname, '../..'),
       path.dirname(botModePlugin),
-      real(path.resolve(__dirname, 'node_modules')),
-      real(path.resolve(__dirname, '../../node_modules'))
+      real(path.resolve(import.meta.dirname, 'node_modules')),
+      real(path.resolve(import.meta.dirname, '../../node_modules'))
     ].filter((p): p is string => p !== null)
   )
 ]
@@ -38,16 +39,16 @@ const fsAllow = [
 // the perf harness opts a production build back in with VITE_PERF_PROBE=1.
 const debugEntry = (command: string, env: Record<string, string>) =>
   command === 'serve' || env.VITE_PERF_PROBE === '1'
-    ? path.resolve(__dirname, './src/debug/dev-only.ts')
-    : path.resolve(__dirname, './src/debug/dev-only.noop.ts')
+    ? path.resolve(import.meta.dirname, './src/debug/dev-only.ts')
+    : path.resolve(import.meta.dirname, './src/debug/dev-only.noop.ts')
 
 // The emoji picker (frimousse) fetches `<emojibaseUrl>/<locale>/data.json` at
 // runtime. Its default is a CDN; Electron must work offline, so serve the
 // bundled emojibase-data package at a stable local path instead — middleware
 // in dev, emitted assets in the build. Only the files a locale actually needs.
 const emojibaseDir =
-  real(path.resolve(__dirname, 'node_modules/emojibase-data')) ??
-  real(path.resolve(__dirname, '../../node_modules/emojibase-data'))
+  real(path.resolve(import.meta.dirname, 'node_modules/emojibase-data')) ??
+  real(path.resolve(import.meta.dirname, '../../node_modules/emojibase-data'))
 
 const EMOJIBASE_PATH = /^[a-z-]+\/(data|messages|shortcodes\/emojibase)\.json$/
 
@@ -148,15 +149,15 @@ export default defineConfig(({ command }) => ({
   resolve: {
     alias: {
       '@/debug/dev-only': debugEntry(command, process.env as Record<string, string>),
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
       '@bot-mode/plugin': botModePlugin,
-      '@hermes/plugin-sdk': path.resolve(__dirname, './src/sdk/index.ts'),
-      '@hermes/shared/billing': path.resolve(__dirname, '../shared/src/billing-types.ts'),
-      '@hermes/shared': path.resolve(__dirname, '../shared/src'),
-      react: path.resolve(__dirname, '../../node_modules/react'),
-      'react-dom': path.resolve(__dirname, '../../node_modules/react-dom'),
-      'react/jsx-dev-runtime': path.resolve(__dirname, '../../node_modules/react/jsx-dev-runtime.js'),
-      'react/jsx-runtime': path.resolve(__dirname, '../../node_modules/react/jsx-runtime.js')
+      '@hermes/plugin-sdk': path.resolve(import.meta.dirname, './src/sdk/index.ts'),
+      '@hermes/shared/billing': path.resolve(import.meta.dirname, '../shared/src/billing-types.ts'),
+      '@hermes/shared': path.resolve(import.meta.dirname, '../shared/src'),
+      react: path.resolve(import.meta.dirname, '../../node_modules/react'),
+      'react-dom': path.resolve(import.meta.dirname, '../../node_modules/react-dom'),
+      'react/jsx-dev-runtime': path.resolve(import.meta.dirname, '../../node_modules/react/jsx-dev-runtime.js'),
+      'react/jsx-runtime': path.resolve(import.meta.dirname, '../../node_modules/react/jsx-runtime.js')
     },
     dedupe: ['react', 'react-dom', 'react-router']
   },

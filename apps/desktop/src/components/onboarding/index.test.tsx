@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
+import { isBotProduct } from '@/lib/product'
 import { $desktopOnboarding, type DesktopOnboardingState, type OnboardingContext } from '@/store/onboarding'
 import type { OAuthProvider } from '@/types/hermes'
 
@@ -32,6 +33,8 @@ function setProviders(providers: OAuthProvider[]) {
 }
 
 const ctx: OnboardingContext = { requestGateway: async () => undefined as never }
+const genericIt = isBotProduct() ? it.skip : it
+const botIt = isBotProduct() ? it : it.skip
 
 afterEach(() => {
   cleanup()
@@ -56,7 +59,7 @@ afterEach(() => {
 })
 
 describe('onboarding Picker', () => {
-  it('features Nous Portal and hides other providers behind a disclosure', () => {
+  genericIt('features Nous Portal and hides other providers behind a disclosure', () => {
     setProviders([provider('anthropic', 'Anthropic Claude'), provider('nous', 'Nous Portal')])
     render(<Picker ctx={ctx} />)
 
@@ -74,7 +77,7 @@ describe('onboarding Picker', () => {
     expect(screen.getByRole('button', { name: 'Collapse' })).toBeTruthy()
   })
 
-  it('shows Fireworks first in the expanded list, ahead of other OAuth providers', () => {
+  genericIt('shows Fireworks first in the expanded list, ahead of other OAuth providers', () => {
     setProviders([
       provider('openai-codex', 'OpenAI Codex / ChatGPT'),
       provider('minimax-oauth', 'MiniMax'),
@@ -95,7 +98,7 @@ describe('onboarding Picker', () => {
     expect(indexOf('MiniMax')).toBeGreaterThan(indexOf('ChatGPT or Codex'))
   })
 
-  it('shows every provider directly when Nous Portal is absent', () => {
+  genericIt('shows every provider directly when Nous Portal is absent', () => {
     setProviders([provider('anthropic', 'Anthropic Claude'), provider('openai-codex', 'OpenAI Codex / ChatGPT')])
     render(<Picker ctx={ctx} />)
 
@@ -104,6 +107,24 @@ describe('onboarding Picker', () => {
     expect(screen.getByText('ChatGPT or Codex Subscription')).toBeTruthy()
     expect(screen.queryByText('Other sign-in options')).toBeNull()
     expect(screen.queryByText('Recommended')).toBeNull()
+  })
+
+  botIt('offers only Codex and Grok in the Bot product', () => {
+    setProviders([
+      provider('anthropic', 'Anthropic Claude'),
+      provider('nous', 'Nous Portal'),
+      provider('openai-codex', 'OpenAI Codex / ChatGPT'),
+      provider('xai-oauth', 'xAI Grok')
+    ])
+    render(<Picker ctx={ctx} />)
+
+    expect(screen.getByText('ChatGPT or Codex Subscription')).toBeTruthy()
+    expect(screen.getByText('xAI Grok')).toBeTruthy()
+    expect(screen.getByText('Recommended')).toBeTruthy()
+    expect(screen.queryByText('Nous Portal')).toBeNull()
+    expect(screen.queryByText('Fireworks AI')).toBeNull()
+    expect(screen.queryByText('Anthropic API Key')).toBeNull()
+    expect(screen.queryByText('OpenRouter')).toBeNull()
   })
 
   it('offers "choose later" on first run and persists the skip', () => {

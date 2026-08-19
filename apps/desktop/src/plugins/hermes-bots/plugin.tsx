@@ -1,9 +1,8 @@
 import plugin from '@bot-mode/plugin'
 /**
- * First-party Bot Mode. The live UI still lives in the hermes-bots desktop
- * plugin so runtime hot-reload keeps working during development. Packaged Bot
- * builds compile this wrapper into the app so a DMG never needs `git clone`
- * or “Reload desktop plugins.”
+ * First-party Bot Mode. The complete implementation is tracked beside this
+ * wrapper so source checkouts, CI, and packaged builds all compile the same UI
+ * without depending on a machine-local desktop plugin.
  */
 import type { HermesPlugin } from '@hermes/plugin-sdk'
 

@@ -91,6 +91,10 @@ jobs:
           npm run typecheck
           npm run lint
           npm run test:ui
+          VITE_HERMES_DESKTOP_PRODUCT=bot HERMES_DESKTOP_PRODUCT=bot \
+            npx vitest run --project ui \
+              src/components/onboarding/index.test.tsx \
+              src/lib/product.test.ts
           npm run test:desktop:platforms
 
       - name: Run Bot SKU packaged E2E

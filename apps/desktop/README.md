@@ -1,5 +1,7 @@
 # Hermes Desktop ☤
 
+> This file documents the generic upstream Hermes Desktop SKU. For the source-first Hermes Bots product, start with the repository [`README.md`](../../README.md) and [`docs/agent-assisted-setup.md`](../../docs/agent-assisted-setup.md).
+
 <p align="center">
   <a href="https://github.com/NousResearch/hermes-agent/releases"><img src="https://img.shields.io/badge/Download-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux-FFD700?style=for-the-badge" alt="Download"></a>
   <a href="https://hermes-agent.nousresearch.com/docs/"><img src="https://img.shields.io/badge/Docs-hermes--agent.nousresearch.com-FFD700?style=for-the-badge" alt="Documentation"></a>

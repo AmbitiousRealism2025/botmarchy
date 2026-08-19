@@ -94,6 +94,8 @@ apps/desktop/dist/
 apps/desktop/src/**/*.js
 apps/desktop/src/**/*.js.map
 apps/desktop/src/**/*.d.ts
+# First-party Bot UI source; it is intentionally shipped in clean checkouts.
+!apps/desktop/src/plugins/hermes-bots/legacy-plugin.js
 !apps/desktop/src/global.d.ts
 !apps/desktop/src/vite-env.d.ts
 apps/shared/src/**/*.js

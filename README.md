@@ -212,6 +212,8 @@ On the Orgo computer in cloud mode:
 
 Group definitions and pinned-bot presentation state are currently local to the desktop app.
 
+See [`PRIVACY.md`](PRIVACY.md) for the complete Orgo, Tailscale, VNC, Composio, provider, and extension data flow.
+
 ## Security model
 
 Hermes bots can run commands, read and write files, use connected apps, and control the shared computer. Review skills, plugins, MCP servers, and approval requests before granting access.
@@ -309,4 +311,4 @@ Hermes Bots is built on [Hermes Agent](https://github.com/NousResearch/hermes-ag
 
 Hermes Bots is an independent open-source project and is not endorsed by or affiliated with Nous Research or the third-party services it integrates.
 
-The original upstream README is preserved at [`docs/upstream-hermes-agent.md`](docs/upstream-hermes-agent.md). See [`LICENSE`](LICENSE) and [`NOTICE.md`](NOTICE.md) for licensing and attribution, [`CONTRIBUTING.md`](CONTRIBUTING.md) to contribute, [`SUPPORT.md`](SUPPORT.md) for help, and [`SECURITY.md`](SECURITY.md) for private vulnerability reporting.
+The original upstream README is preserved at [`docs/upstream-hermes-agent.md`](docs/upstream-hermes-agent.md). See [`LICENSE`](LICENSE) and [`NOTICE.md`](NOTICE.md) for licensing and attribution, [`PRIVACY.md`](PRIVACY.md) for data flow, [`CONTRIBUTING.md`](CONTRIBUTING.md) to contribute, [`SUPPORT.md`](SUPPORT.md) for help, and [`SECURITY.md`](SECURITY.md) for private vulnerability reporting.

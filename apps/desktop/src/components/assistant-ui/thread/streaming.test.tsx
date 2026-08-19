@@ -477,12 +477,13 @@ function DismissibleErrorHarness({ onDismissError }: { onDismissError: (messageI
 describe('assistant-ui streaming renderer', () => {
   beforeEach(() => {
     resizeObservers.clear()
-    setToolViewMode('technical')
+    setToolViewMode('product')
   })
 
   afterEach(() => setToolViewMode('product'))
 
   it('renders assistant text incrementally before completion', async () => {
+    setToolViewMode('technical')
     let controls: StreamingControls | undefined
 
     const registerControls = (next: StreamingControls) => {
@@ -578,6 +579,7 @@ describe('assistant-ui streaming renderer', () => {
   // tests. The rendering/streaming-content tests below remain the contract.
 
   it('renders an incomplete streaming fenced code block as a code card', async () => {
+    setToolViewMode('technical')
     const { container } = render(<RunningMessageHarness message={assistantMessage('```ts\nconst answer = 42\n')} />)
 
     await waitFor(() => {
@@ -589,6 +591,7 @@ describe('assistant-ui streaming renderer', () => {
   })
 
   it('renders an incomplete streaming reasoning fenced code block as a code card', async () => {
+    setToolViewMode('technical')
     const { container } = render(<RunningReasoningHarness />)
     const ui = within(container)
     const thinkingToggle = ui.getByRole('button', { name: /thinking/i })
@@ -608,6 +611,7 @@ describe('assistant-ui streaming renderer', () => {
   })
 
   it('renders reasoning text without a leading token space', () => {
+    setToolViewMode('technical')
     const { container } = render(<ReasoningHarness />)
     const ui = within(container)
 
@@ -620,6 +624,7 @@ describe('assistant-ui streaming renderer', () => {
   })
 
   it('groups consecutive reasoning parts under one thinking disclosure', () => {
+    setToolViewMode('technical')
     const { container } = render(<GroupedReasoningHarness />)
 
     const disclosures = container.querySelectorAll('[data-slot="aui_thinking-disclosure"]')
@@ -634,6 +639,7 @@ describe('assistant-ui streaming renderer', () => {
   })
 
   it('does not reopen an earlier completed thinking group when a later group is running', () => {
+    setToolViewMode('technical')
     const { container } = render(<RunningMessageHarness message={assistantSeparatedReasoningMessage()} />)
 
     const disclosures = container.querySelectorAll('[data-slot="aui_thinking-disclosure"]')
@@ -678,7 +684,6 @@ describe('assistant-ui streaming renderer', () => {
     )
 
     fireEvent.click(container.querySelector('[data-tool-row] button')!)
-    fireEvent.click(screen.getByRole('button', { name: 'Tool payload' }))
 
     await waitFor(() => {
       expect(container.textContent).toContain('FAL rejected the prompt')
@@ -688,6 +693,7 @@ describe('assistant-ui streaming renderer', () => {
   })
 
   it('shows the command prompt and exit code for terminal calls', async () => {
+    setToolViewMode('technical')
     const { container } = render(<MessageHarness message={assistantTerminalMessage()} />)
 
     fireEvent.click(container.querySelector('[data-tool-row] button')!)

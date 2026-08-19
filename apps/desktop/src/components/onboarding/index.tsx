@@ -472,8 +472,7 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
 
   const select = (p: OAuthProvider) => void startProviderOAuth(p, ctx)
   const featuredId = isBotProduct() ? 'openai-codex' : FEATURED_ID
-  const featured = ordered.find(p => p.id === featuredId) ?? ordered[0] ?? null
-  const featuredRecommended = featured?.id === featuredId
+  const featured = ordered.find(p => p.id === featuredId) ?? null
   const rest = featured ? ordered.filter(p => p.id !== featured.id) : ordered
   const collapsible = featured?.id === FEATURED_ID && !isBotProduct()
   const showRest = !collapsible || showAll || isBotProduct()
@@ -481,13 +480,7 @@ export function Picker({ ctx }: { ctx: OnboardingContext }) {
   return (
     <div className="grid gap-2">
       <div className="grid max-h-[60dvh] gap-2 overflow-y-auto p-1">
-        {featured ? (
-          featuredRecommended ? (
-            <FeaturedProviderRow onSelect={select} provider={featured} />
-          ) : (
-            <ProviderRow onSelect={select} provider={featured} />
-          )
-        ) : null}
+        {featured ? <FeaturedProviderRow onSelect={select} provider={featured} /> : null}
         {showRest ? (
           <>
             {/* Fireworks leads the expanded list, matching CANONICAL_PROVIDERS
