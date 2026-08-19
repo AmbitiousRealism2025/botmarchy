@@ -4,8 +4,8 @@ import { test } from 'vitest'
 
 import {
   fetchOrgoDesktopSession,
-  normalizeOrgoComputerId,
   normalizeOptionalOrgoComputerId,
+  normalizeOrgoComputerId,
   privateOrgoWebsocketUrl,
   resolveOrgoDesktopProfile,
   serializeOrgoDesktopError
@@ -78,11 +78,13 @@ test('fetches fresh computer metadata and VNC credentials without exposing the A
     const headers = new Headers(init?.headers)
     calls.push({ input: url, auth: headers.get('Authorization') })
 
-    if (url.endsWith('/vnc-password')) {
-      return Response.json({ password: 'vnc secret' })
-    }
-
-    return Response.json({ id: COMPUTER_ID, name: 'Dewey', instance_id: '8b517302', status: 'running' })
+    return Response.json({
+      id: COMPUTER_ID,
+      name: 'Dewey',
+      instance_id: '8b517302',
+      status: 'running',
+      vnc_password: 'vnc secret'
+    })
   }) as typeof fetch
 
   const session = await fetchOrgoDesktopSession({ apiKey: 'orgo-secret', computerId: COMPUTER_ID }, fetchImpl)
@@ -96,7 +98,7 @@ test('fetches fresh computer metadata and VNC credentials without exposing the A
     password: 'vnc secret'
   })
   assert.equal(JSON.stringify(session).includes('orgo-secret'), false)
-  assert.equal(calls.length, 2)
+  assert.equal(calls.length, 1)
   assert.equal(
     calls.every(call => call.auth === 'Bearer orgo-secret'),
     true

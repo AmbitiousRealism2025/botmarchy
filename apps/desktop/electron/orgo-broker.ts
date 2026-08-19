@@ -12,6 +12,7 @@ export const ORGO_MCP_SERVER_NAME = 'orgo'
 export const ORGO_MCP_TRUST = 'untrusted' as const
 export const ORGO_MCP_COMMAND = 'npx'
 export const ORGO_MCP_ARGS = ['-y', 'orgo-mcp-server']
+export const BOT_ORGO_WORKSPACE_NAME = 'Hermes Bots'
 export const HERMES_ORGO_INSTALL_SH = 'https://hermes-agent.nousresearch.com/install.sh'
 export const HERMES_ORGO_PROBE_COMMAND =
   'command -v hermes >/dev/null 2>&1 && hermes --version'
@@ -215,6 +216,15 @@ function asWorkspace(value: unknown): OrgoWorkspaceSummary | null {
   return { id, name: name || id, status: String(record.status ?? '').trim() || undefined }
 }
 
+export function pickOrgoWorkspaceByName(
+  workspaces: OrgoWorkspaceSummary[],
+  name: string
+): OrgoWorkspaceSummary | undefined {
+  const target = name.trim().toLowerCase()
+
+  return workspaces.find(workspace => workspace.name.trim().toLowerCase() === target)
+}
+
 function asComputer(value: unknown): OrgoComputerSummary | null {
   const record = unwrapRecord(value, ['computer', 'data'])
   const id = String(record.id ?? record.computer_id ?? '').trim()
@@ -279,10 +289,21 @@ export async function listOrgoComputers(
   workspaceId?: string,
   fetchImpl: typeof fetch = fetch
 ): Promise<OrgoComputerSummary[]> {
-  const query = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : ''
-  const payload = await orgoRequest(apiKey, `/computers${query}`, {}, fetchImpl)
+  if (!workspaceId) {
+    const payload = await orgoRequest(apiKey, '/workspaces', {}, fetchImpl)
+    const workspaces = unwrapList(payload, ['workspaces', 'data', 'projects'])
 
-  return unwrapList(payload, ['computers', 'data', 'desktops']).map(asComputer).filter(Boolean) as OrgoComputerSummary[]
+    return workspaces.flatMap(workspace =>
+      unwrapList(workspace, ['computers', 'desktops']).map(asComputer).filter(Boolean)
+    ) as OrgoComputerSummary[]
+  }
+
+  // Orgo's workspace response embeds its computers. GET /computers is not a
+  // list endpoint and returns 405, so scope discovery through the workspace.
+  const payload = await orgoRequest(apiKey, `/workspaces/${encodeURIComponent(workspaceId)}`, {}, fetchImpl)
+  const workspace = unwrapRecord(payload, ['workspace', 'data', 'project'])
+
+  return unwrapList(workspace, ['computers', 'desktops']).map(asComputer).filter(Boolean) as OrgoComputerSummary[]
 }
 
 export async function resolveHermesAgentTemplateRef(

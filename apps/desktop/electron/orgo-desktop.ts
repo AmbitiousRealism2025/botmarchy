@@ -152,28 +152,37 @@ export async function fetchOrgoDesktopSession(
   }
 
   let computerResponse: Response
-  let passwordResponse: Response
 
   try {
-    ;[computerResponse, passwordResponse] = await Promise.all([
-      fetchImpl(`${ORGO_API_BASE}/computers/${encodeURIComponent(computerId)}`, { headers }),
-      fetchImpl(`${ORGO_API_BASE}/computers/${encodeURIComponent(computerId)}/vnc-password`, { headers })
-    ])
+    computerResponse = await fetchImpl(`${ORGO_API_BASE}/computers/${encodeURIComponent(computerId)}`, { headers })
   } catch {
     throw new OrgoDesktopError('network', 'Could not reach the Orgo API.')
   }
 
   await requireOk(computerResponse)
-  await requireOk(passwordResponse)
-
   const computer = unwrapRecord(await parseJson(computerResponse), ['computer', 'data'])
-  const passwordBody = unwrapRecord(await parseJson(passwordResponse), ['data'])
+  let password = String(computer.password ?? computer.vnc_password ?? '').trim()
+
+  // Older Orgo deployments returned the rotating credential separately.
+  if (!password) {
+    let passwordResponse: Response
+
+    try {
+      passwordResponse = await fetchImpl(`${ORGO_API_BASE}/computers/${encodeURIComponent(computerId)}/vnc-password`, {
+        headers
+      })
+    } catch {
+      throw new OrgoDesktopError('network', 'Could not reach the Orgo API.')
+    }
+
+    await requireOk(passwordResponse)
+    const passwordBody = unwrapRecord(await parseJson(passwordResponse), ['data'])
+    password = String(passwordBody.password ?? passwordBody.vnc_password ?? '').trim()
+  }
 
   const instanceId = String(
     computer.instance_id ?? computer.instanceId ?? computer.fly_instance_id ?? computer.flyInstanceId ?? ''
   ).trim()
-
-  const password = String(passwordBody.password ?? passwordBody.vnc_password ?? '').trim()
 
   if (!/^[a-zA-Z0-9-]+$/.test(instanceId) || !password) {
     throw new OrgoDesktopError('invalid-response', 'Orgo did not return usable desktop connection details.')

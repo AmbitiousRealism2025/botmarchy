@@ -182,6 +182,7 @@ import { loadNativeTokenSet, type NativeTokenStoreIo, persistNativeTokenSet } fr
 import { serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
 import {
   beginOrgoTailscaleSetup,
+  BOT_ORGO_WORKSPACE_NAME,
   createOrgoComputer,
   createOrgoWorkspace,
   doctorOrgoComputer,
@@ -195,6 +196,7 @@ import {
   orgoProcessEnv,
   parseTailscaleStatus,
   persistOrgoEnvironmentOnRemote,
+  pickOrgoWorkspaceByName,
   pickSharedHermesComputer,
   resolveHermesAgentTemplateRef
 } from './orgo-broker'
@@ -7224,7 +7226,11 @@ async function provisionOrgoSharedComputer() {
 
   if (!workspaceId) {
     const workspaces = await listOrgoWorkspaces(apiKey)
-    const workspace = workspaces[0] || (await createOrgoWorkspace(apiKey, isBotProduct() ? 'Hermes Bots' : 'Hermes'))
+    const workspaceName = isBotProduct() ? BOT_ORGO_WORKSPACE_NAME : 'Hermes'
+
+    const workspace =
+      pickOrgoWorkspaceByName(workspaces, workspaceName) || (await createOrgoWorkspace(apiKey, workspaceName))
+
     workspaceId = workspace.id
   }
 

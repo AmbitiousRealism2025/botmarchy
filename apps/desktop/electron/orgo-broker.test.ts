@@ -4,6 +4,7 @@ import { test } from 'vitest'
 
 import {
   beginOrgoTailscaleSetup,
+  BOT_ORGO_WORKSPACE_NAME,
   createOrgoComputer,
   doctorOrgoComputer,
   ensureHermesInstalledOnOrgo,
@@ -15,6 +16,7 @@ import {
   orgoProcessEnv,
   parseTailscaleStatus,
   persistOrgoEnvironmentOnRemote,
+  pickOrgoWorkspaceByName,
   pickSharedHermesComputer,
   resolveHermesAgentTemplateRef
 } from './orgo-broker'
@@ -59,15 +61,22 @@ test('MCP entry references the process env instead of copying the API key', () =
 })
 
 test('lists workspaces and computers without exposing the key in parsed results', async () => {
+  const calls: string[] = []
+
   const fetchImpl = (async (input: string | URL | Request) => {
     const url = String(input)
+    calls.push(url)
 
     if (url.endsWith('/workspaces')) {
       return json({ workspaces: [{ id: WORKSPACE_ID, name: 'Bots' }] })
     }
 
-    if (url.includes('/computers')) {
-      return json({ computers: [{ id: COMPUTER_ID, name: 'Shared', status: 'stopped', workspace_id: WORKSPACE_ID }] })
+    if (url.endsWith(`/workspaces/${WORKSPACE_ID}`)) {
+      return json({
+        id: WORKSPACE_ID,
+        name: 'Bots',
+        desktops: [{ id: COMPUTER_ID, name: 'Shared', status: 'stopped', workspace_id: WORKSPACE_ID }]
+      })
     }
 
     return json({}, 404)
@@ -79,6 +88,17 @@ test('lists workspaces and computers without exposing the key in parsed results'
   assert.deepEqual(workspaces, [{ id: WORKSPACE_ID, name: 'Bots', status: undefined }])
   assert.equal(computers[0]?.id, COMPUTER_ID)
   assert.equal(JSON.stringify(computers).includes('orgo-secret'), false)
+  assert.equal(calls.some(url => url.includes('/computers')), false)
+})
+
+test('reuses only the dedicated Hermes Bots workspace', () => {
+  const workspaces = [
+    { id: 'first', name: 'Existing project' },
+    { id: WORKSPACE_ID, name: ' hermes bots ' }
+  ]
+
+  assert.equal(pickOrgoWorkspaceByName(workspaces, BOT_ORGO_WORKSPACE_NAME)?.id, WORKSPACE_ID)
+  assert.equal(pickOrgoWorkspaceByName(workspaces, 'Missing'), undefined)
 })
 
 test('creates a computer from the curated template', async () => {
