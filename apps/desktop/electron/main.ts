@@ -7876,7 +7876,9 @@ async function bootstrapSshConnection(profile, sshConfig, reuseToken, source) {
       const { apiKey, computerId } = defaultOrgoDesktopCredentials()
       await ensureOrgoComputerRunning(apiKey, computerId)
     } catch (error) {
-      sshRememberLog(`[ssh] could not wake the shared Orgo computer: ${error instanceof Error ? error.message : String(error)}`)
+      sshRememberLog(
+        `[ssh] could not wake the shared Orgo computer: ${error instanceof Error ? error.message : String(error)}`
+      )
     }
   }
 
@@ -10899,7 +10901,9 @@ ipcMain.handle('hermes:orgo-desktop:doctor', async () => {
 
   return doctorOrgoComputer(apiKey, entry?.computerId || '')
 })
-ipcMain.handle('hermes:orgo-desktop:sync', async (_event, profiles) => syncOrgoMcpToProfiles(Array.isArray(profiles) ? profiles : []))
+ipcMain.handle('hermes:orgo-desktop:sync', async (_event, profiles) =>
+  syncOrgoMcpToProfiles(Array.isArray(profiles) ? profiles : [])
+)
 ipcMain.handle('hermes:orgo-desktop:workspaces', async () => {
   const entry = resolveOrgoDesktopProfile(readOrgoDesktopConfig().profiles, 'default').entry
   const apiKey = decryptDesktopSecret(entry?.apiKey)
@@ -10923,12 +10927,18 @@ ipcMain.handle('hermes:orgo-desktop:computers', async (_event, workspaceId) => {
 ipcMain.handle('hermes:connectors:key:status', async () => withComposioBroker(broker => broker.keyStatus()))
 ipcMain.handle('hermes:connectors:key:save', async (_event, key) => withComposioBroker(broker => broker.saveKey(key)))
 ipcMain.handle('hermes:connectors:key:remove', async () => withComposioBroker(broker => broker.removeKey()))
-ipcMain.handle('hermes:connectors:catalog', async (_event, query) => withComposioBroker(broker => broker.listCatalog(query || {})))
+ipcMain.handle('hermes:connectors:catalog', async (_event, query) =>
+  withComposioBroker(broker => broker.listCatalog(query || {}))
+)
 ipcMain.handle('hermes:connectors:categories', async () => withComposioBroker(broker => broker.listCategories()))
 ipcMain.handle('hermes:connectors:connections', async () => withComposioBroker(broker => broker.listConnections()))
-ipcMain.handle('hermes:connectors:authorize', async (_event, slug) => withComposioBroker(broker => broker.authorize(slug)))
+ipcMain.handle('hermes:connectors:authorize', async (_event, slug) =>
+  withComposioBroker(broker => broker.authorize(slug))
+)
 ipcMain.handle('hermes:connectors:poll', async (_event, slug) => withComposioBroker(broker => broker.poll(slug)))
-ipcMain.handle('hermes:connectors:disconnect', async (_event, slug) => withComposioBroker(broker => broker.disconnect(slug)))
+ipcMain.handle('hermes:connectors:disconnect', async (_event, slug) =>
+  withComposioBroker(broker => broker.disconnect(slug))
+)
 ipcMain.handle('hermes:connectors:sync', async (_event, profiles) =>
   withComposioBroker(broker => broker.syncProfiles(Array.isArray(profiles) ? profiles : []))
 )
@@ -12608,11 +12618,11 @@ ipcMain.handle('hermes:updates:check', async () =>
         fetchedAt: Date.now()
       }
     : checkUpdates().catch(error => ({
-    supported: true,
-    branch: readDesktopUpdateConfig().branch,
-    error: 'check-failed',
-    message: error?.message || String(error),
-    fetchedAt: Date.now()
+        supported: true,
+        branch: readDesktopUpdateConfig().branch,
+        error: 'check-failed',
+        message: error?.message || String(error),
+        fetchedAt: Date.now()
       }))
 )
 

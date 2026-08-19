@@ -6,30 +6,222 @@ export const COMPOSIO_CONSUMER_HEADER = 'x-consumer-api-key'
 const MCP_PROTOCOL_VERSION = '2025-03-26'
 
 export const CURATED_CONNECT_TOOLKITS: ConnectorToolkit[] = [
-  { slug: 'slack', name: 'Slack', description: 'Post updates and read channels', logo: null, category: 'Chat', featured: true, isNoAuth: false },
-  { slug: 'github', name: 'GitHub', description: 'Issues, pull requests, and code', logo: null, category: 'Dev', featured: true, isNoAuth: false },
-  { slug: 'gmail', name: 'Gmail', description: 'Read and send email', logo: null, category: 'Email', featured: true, isNoAuth: false },
-  { slug: 'googlecalendar', name: 'Google Calendar', description: 'Read and create events', logo: null, category: 'Calendar', featured: true, isNoAuth: false },
-  { slug: 'googlesheets', name: 'Google Sheets', description: 'Read and update spreadsheets', logo: null, category: 'Docs', featured: false, isNoAuth: false },
-  { slug: 'googledocs', name: 'Google Docs', description: 'Read and write documents', logo: null, category: 'Docs', featured: false, isNoAuth: false },
-  { slug: 'googledrive', name: 'Google Drive', description: 'Browse and manage files', logo: null, category: 'Files', featured: true, isNoAuth: false },
-  { slug: 'notion', name: 'Notion', description: 'Pages and databases', logo: null, category: 'Docs', featured: true, isNoAuth: false },
-  { slug: 'linear', name: 'Linear', description: 'Issues and project tracking', logo: null, category: 'Work', featured: true, isNoAuth: false },
-  { slug: 'sentry', name: 'Sentry', description: 'Errors and alerts', logo: null, category: 'Dev', featured: false, isNoAuth: false },
-  { slug: 'posthog', name: 'PostHog', description: 'Analytics, feature flags, experiments', logo: null, category: 'Analytics', featured: false, isNoAuth: false },
-  { slug: 'discord', name: 'Discord', description: 'Messages and channels', logo: null, category: 'Chat', featured: true, isNoAuth: false },
-  { slug: 'twitter', name: 'X (Twitter)', description: 'Post and read on X', logo: null, category: 'Social', featured: true, isNoAuth: false },
-  { slug: 'reddit', name: 'Reddit', description: 'Browse and post', logo: null, category: 'Social', featured: false, isNoAuth: false },
-  { slug: 'hubspot', name: 'HubSpot', description: 'CRM search and updates', logo: null, category: 'CRM', featured: true, isNoAuth: false },
-  { slug: 'salesforce', name: 'Salesforce', description: 'CRM records and reports', logo: null, category: 'CRM', featured: true, isNoAuth: false },
-  { slug: 'jira', name: 'Jira', description: 'Issues and sprints', logo: null, category: 'Work', featured: true, isNoAuth: false },
-  { slug: 'asana', name: 'Asana', description: 'Tasks and projects', logo: null, category: 'Work', featured: true, isNoAuth: false },
-  { slug: 'trello', name: 'Trello', description: 'Boards and cards', logo: null, category: 'Work', featured: false, isNoAuth: false },
-  { slug: 'dropbox', name: 'Dropbox', description: 'Files and folders', logo: null, category: 'Files', featured: true, isNoAuth: false },
-  { slug: 'airtable', name: 'Airtable', description: 'Bases and records', logo: null, category: 'Docs', featured: false, isNoAuth: false },
-  { slug: 'figma', name: 'Figma', description: 'Files and comments', logo: null, category: 'Design', featured: true, isNoAuth: false },
-  { slug: 'stripe', name: 'Stripe', description: 'Payments and customers', logo: null, category: 'Finance', featured: false, isNoAuth: false },
-  { slug: 'outlook', name: 'Outlook', description: 'Mail and calendar', logo: null, category: 'Email', featured: true, isNoAuth: false }
+  {
+    slug: 'slack',
+    name: 'Slack',
+    description: 'Post updates and read channels',
+    logo: null,
+    category: 'Chat',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'github',
+    name: 'GitHub',
+    description: 'Issues, pull requests, and code',
+    logo: null,
+    category: 'Dev',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'gmail',
+    name: 'Gmail',
+    description: 'Read and send email',
+    logo: null,
+    category: 'Email',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'googlecalendar',
+    name: 'Google Calendar',
+    description: 'Read and create events',
+    logo: null,
+    category: 'Calendar',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'googlesheets',
+    name: 'Google Sheets',
+    description: 'Read and update spreadsheets',
+    logo: null,
+    category: 'Docs',
+    featured: false,
+    isNoAuth: false
+  },
+  {
+    slug: 'googledocs',
+    name: 'Google Docs',
+    description: 'Read and write documents',
+    logo: null,
+    category: 'Docs',
+    featured: false,
+    isNoAuth: false
+  },
+  {
+    slug: 'googledrive',
+    name: 'Google Drive',
+    description: 'Browse and manage files',
+    logo: null,
+    category: 'Files',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'notion',
+    name: 'Notion',
+    description: 'Pages and databases',
+    logo: null,
+    category: 'Docs',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'linear',
+    name: 'Linear',
+    description: 'Issues and project tracking',
+    logo: null,
+    category: 'Work',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'sentry',
+    name: 'Sentry',
+    description: 'Errors and alerts',
+    logo: null,
+    category: 'Dev',
+    featured: false,
+    isNoAuth: false
+  },
+  {
+    slug: 'posthog',
+    name: 'PostHog',
+    description: 'Analytics, feature flags, experiments',
+    logo: null,
+    category: 'Analytics',
+    featured: false,
+    isNoAuth: false
+  },
+  {
+    slug: 'discord',
+    name: 'Discord',
+    description: 'Messages and channels',
+    logo: null,
+    category: 'Chat',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'twitter',
+    name: 'X (Twitter)',
+    description: 'Post and read on X',
+    logo: null,
+    category: 'Social',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'reddit',
+    name: 'Reddit',
+    description: 'Browse and post',
+    logo: null,
+    category: 'Social',
+    featured: false,
+    isNoAuth: false
+  },
+  {
+    slug: 'hubspot',
+    name: 'HubSpot',
+    description: 'CRM search and updates',
+    logo: null,
+    category: 'CRM',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'salesforce',
+    name: 'Salesforce',
+    description: 'CRM records and reports',
+    logo: null,
+    category: 'CRM',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'jira',
+    name: 'Jira',
+    description: 'Issues and sprints',
+    logo: null,
+    category: 'Work',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'asana',
+    name: 'Asana',
+    description: 'Tasks and projects',
+    logo: null,
+    category: 'Work',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'trello',
+    name: 'Trello',
+    description: 'Boards and cards',
+    logo: null,
+    category: 'Work',
+    featured: false,
+    isNoAuth: false
+  },
+  {
+    slug: 'dropbox',
+    name: 'Dropbox',
+    description: 'Files and folders',
+    logo: null,
+    category: 'Files',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'airtable',
+    name: 'Airtable',
+    description: 'Bases and records',
+    logo: null,
+    category: 'Docs',
+    featured: false,
+    isNoAuth: false
+  },
+  {
+    slug: 'figma',
+    name: 'Figma',
+    description: 'Files and comments',
+    logo: null,
+    category: 'Design',
+    featured: true,
+    isNoAuth: false
+  },
+  {
+    slug: 'stripe',
+    name: 'Stripe',
+    description: 'Payments and customers',
+    logo: null,
+    category: 'Finance',
+    featured: false,
+    isNoAuth: false
+  },
+  {
+    slug: 'outlook',
+    name: 'Outlook',
+    description: 'Mail and calendar',
+    logo: null,
+    category: 'Email',
+    featured: true,
+    isNoAuth: false
+  }
 ]
 
 export function isComposioConsumerKey(key: string): boolean {
@@ -47,7 +239,10 @@ export function consumerMcpEntry(apiKey: string, timeout = 180): ComposioMcpEntr
 
 export interface ComposioConnectClientLike {
   validate: () => Promise<void>
-  listCatalog: (query?: { search?: string; cursor?: string }) => Promise<{ items: ConnectorToolkit[]; nextCursor: string | null }>
+  listCatalog: (query?: {
+    search?: string
+    cursor?: string
+  }) => Promise<{ items: ConnectorToolkit[]; nextCursor: string | null }>
   connections: (slugs?: string[]) => Promise<ConnectorAccountView[]>
   authorize: (slug: string) => Promise<{ redirectUrl: string | null; connected: boolean; status: string }>
 }
@@ -129,8 +324,7 @@ function isConnectedPayload(value: unknown): boolean {
   const serialized = JSON.stringify(value ?? {})
 
   return (
-    /"(?:connected|active)"\s*:\s*true/i.test(serialized) ||
-    /"status"\s*:\s*"(?:active|connected)"/i.test(serialized)
+    /"(?:connected|active)"\s*:\s*true/i.test(serialized) || /"status"\s*:\s*"(?:active|connected)"/i.test(serialized)
   )
 }
 
@@ -166,7 +360,12 @@ async function mcpRpc(
   }
 }
 
-async function callMetaTool(apiKey: string, name: string, args: Record<string, unknown>, fetchImpl: FetchLike): Promise<Record<string, unknown>> {
+async function callMetaTool(
+  apiKey: string,
+  name: string,
+  args: Record<string, unknown>,
+  fetchImpl: FetchLike
+): Promise<Record<string, unknown>> {
   const initialized = await mcpRpc(
     apiKey,
     {
@@ -182,7 +381,9 @@ async function callMetaTool(apiKey: string, name: string, args: Record<string, u
     fetchImpl
   )
 
-  const initializeResponse = asRecord(initialized.messages.find(item => asRecord(item)?.id === 1) || initialized.messages[0])
+  const initializeResponse = asRecord(
+    initialized.messages.find(item => asRecord(item)?.id === 1) || initialized.messages[0]
+  )
 
   if (!initializeResponse) {
     throw new Error('Composio MCP returned no initialize response')
@@ -194,7 +395,13 @@ async function callMetaTool(apiKey: string, name: string, args: Record<string, u
   }
 
   const protocolVersion = String(asRecord(initializeResponse.result)?.protocolVersion || MCP_PROTOCOL_VERSION)
-  await mcpRpc(apiKey, { jsonrpc: '2.0', method: 'notifications/initialized' }, fetchImpl, initialized.sessionId, protocolVersion)
+  await mcpRpc(
+    apiKey,
+    { jsonrpc: '2.0', method: 'notifications/initialized' },
+    fetchImpl,
+    initialized.sessionId,
+    protocolVersion
+  )
 
   const rpc = await mcpRpc(
     apiKey,
@@ -303,7 +510,12 @@ async function listBackendCatalog(
 
           return [toolkit]
         }),
-        nextCursor: typeof json?.next_cursor === 'string' ? json.next_cursor : typeof json?.nextCursor === 'string' ? json.nextCursor : null
+        nextCursor:
+          typeof json?.next_cursor === 'string'
+            ? json.next_cursor
+            : typeof json?.nextCursor === 'string'
+              ? json.nextCursor
+              : null
       }
     } catch {
       // Consumer keys often cannot read the project catalog; fall through.
@@ -331,7 +543,9 @@ export function createComposioConnectClient(apiKey: string, fetchImpl: FetchLike
         .toLowerCase()
 
       const items = search
-        ? CURATED_CONNECT_TOOLKITS.filter(item => `${item.name} ${item.slug} ${item.description}`.toLowerCase().includes(search))
+        ? CURATED_CONNECT_TOOLKITS.filter(item =>
+            `${item.name} ${item.slug} ${item.description}`.toLowerCase().includes(search)
+          )
         : CURATED_CONNECT_TOOLKITS
 
       return { items, nextCursor: null }

@@ -71,9 +71,9 @@ describe('agent details routines', () => {
     expect(screen.getByText('Active routine').closest('button')?.className).toContain('items-center')
     expect(screen.getByText('Active routine').closest('button')?.className).toContain('rounded-2xl')
     expect(screen.getByLabelText('Paused').className).toContain('text-(--ui-text-quaternary)')
-    expect(screen.getByRole('button', { name: 'Create Routine' }).querySelector('svg')?.getAttribute('class')).toContain(
-      'size-4'
-    )
+    expect(
+      screen.getByRole('button', { name: 'Create Routine' }).querySelector('svg')?.getAttribute('class')
+    ).toContain('size-4')
   })
 
   it('creates a real scheduled job from the compact editor', async () => {
@@ -82,7 +82,9 @@ describe('agent details routines', () => {
     render(<RoutineEditor job={null} onClose={onClose} />)
 
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Daily rescue queue' } })
-    fireEvent.change(screen.getByLabelText('Instruction'), { target: { value: 'Rank the accounts needing attention.' } })
+    fireEvent.change(screen.getByLabelText('Instruction'), {
+      target: { value: 'Rank the accounts needing attention.' }
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Create Routine' }))
 
     await waitFor(() =>

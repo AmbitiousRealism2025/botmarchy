@@ -13,8 +13,7 @@ export const ORGO_MCP_TRUST = 'untrusted' as const
 export const ORGO_MCP_COMMAND = 'npx'
 export const ORGO_MCP_ARGS = ['-y', 'orgo-mcp-server']
 export const HERMES_ORGO_INSTALL_SH = 'https://hermes-agent.nousresearch.com/install.sh'
-export const HERMES_ORGO_PROBE_COMMAND =
-  'command -v hermes >/dev/null 2>&1 && hermes --version'
+export const HERMES_ORGO_PROBE_COMMAND = 'command -v hermes >/dev/null 2>&1 && hermes --version'
 export const HERMES_ORGO_INSTALL_COMMAND = `curl -fsSL ${HERMES_ORGO_INSTALL_SH} | bash`
 export const TAILSCALE_INSTALL_COMMAND =
   'command -v tailscale >/dev/null 2>&1 || curl -fsSL https://tailscale.com/install.sh | sh'
@@ -249,10 +248,15 @@ export function pickSharedHermesComputer(
   return computers.find(computer => isHermesAgentTemplate(computer.templateRef)) || computers[0]
 }
 
-export async function listOrgoWorkspaces(apiKey: string, fetchImpl: typeof fetch = fetch): Promise<OrgoWorkspaceSummary[]> {
+export async function listOrgoWorkspaces(
+  apiKey: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<OrgoWorkspaceSummary[]> {
   const payload = await orgoRequest(apiKey, '/workspaces', {}, fetchImpl)
 
-  return unwrapList(payload, ['workspaces', 'data', 'projects']).map(asWorkspace).filter(Boolean) as OrgoWorkspaceSummary[]
+  return unwrapList(payload, ['workspaces', 'data', 'projects'])
+    .map(asWorkspace)
+    .filter(Boolean) as OrgoWorkspaceSummary[]
 }
 
 export async function createOrgoWorkspace(
@@ -260,10 +264,15 @@ export async function createOrgoWorkspace(
   name: string,
   fetchImpl: typeof fetch = fetch
 ): Promise<OrgoWorkspaceSummary> {
-  const payload = await orgoRequest(apiKey, '/workspaces', {
-    method: 'POST',
-    body: JSON.stringify({ name: name.trim() || 'Hermes Bots' })
-  }, fetchImpl)
+  const payload = await orgoRequest(
+    apiKey,
+    '/workspaces',
+    {
+      method: 'POST',
+      body: JSON.stringify({ name: name.trim() || 'Hermes Bots' })
+    },
+    fetchImpl
+  )
 
   const workspace = asWorkspace(payload)
 
@@ -285,10 +294,7 @@ export async function listOrgoComputers(
   return unwrapList(payload, ['computers', 'data', 'desktops']).map(asComputer).filter(Boolean) as OrgoComputerSummary[]
 }
 
-export async function resolveHermesAgentTemplateRef(
-  apiKey: string,
-  fetchImpl: typeof fetch = fetch
-): Promise<string> {
+export async function resolveHermesAgentTemplateRef(apiKey: string, fetchImpl: typeof fetch = fetch): Promise<string> {
   if (isBotProduct()) {
     return BOT_TEMPLATE_REF
   }
@@ -320,17 +326,22 @@ export async function createOrgoComputer(
   input: { workspaceId: string; name?: string; templateRef?: string },
   fetchImpl: typeof fetch = fetch
 ): Promise<OrgoComputerSummary> {
-  const payload = await orgoRequest(apiKey, '/computers', {
-    method: 'POST',
-    body: JSON.stringify({
-      workspace_id: input.workspaceId,
-      name: input.name?.trim() || 'Shared computer',
-      template_ref: input.templateRef || BOT_TEMPLATE_REF,
-      os: 'linux',
-      ram: 8,
-      cpu: 4
-    })
-  }, fetchImpl)
+  const payload = await orgoRequest(
+    apiKey,
+    '/computers',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        workspace_id: input.workspaceId,
+        name: input.name?.trim() || 'Shared computer',
+        template_ref: input.templateRef || BOT_TEMPLATE_REF,
+        os: 'linux',
+        ram: 8,
+        cpu: 4
+      })
+    },
+    fetchImpl
+  )
 
   const computer = asComputer(payload)
 
@@ -346,7 +357,12 @@ export async function getOrgoComputer(
   computerId: string,
   fetchImpl: typeof fetch = fetch
 ): Promise<OrgoComputerSummary> {
-  const payload = await orgoRequest(apiKey, `/computers/${encodeURIComponent(normalizeOrgoComputerId(computerId))}`, {}, fetchImpl)
+  const payload = await orgoRequest(
+    apiKey,
+    `/computers/${encodeURIComponent(normalizeOrgoComputerId(computerId))}`,
+    {},
+    fetchImpl
+  )
   const computer = asComputer(payload)
 
   if (!computer) {
@@ -557,10 +573,7 @@ export async function ensureHermesInstalledOnOrgo(
   const install = await runOrgoBash(apiKey, computerId, HERMES_ORGO_INSTALL_COMMAND, fetchImpl)
 
   if (!install.success) {
-    throw new OrgoDesktopError(
-      'unavailable',
-      install.output.trim() || 'Could not install Hermes on the Orgo computer.'
-    )
+    throw new OrgoDesktopError('unavailable', install.output.trim() || 'Could not install Hermes on the Orgo computer.')
   }
 
   const verify = await runOrgoBash(apiKey, computerId, HERMES_ORGO_PROBE_COMMAND, fetchImpl)
@@ -588,19 +601,18 @@ export async function persistOrgoEnvironmentOnRemote(
     'import base64, os',
     "path = Path('/root/.hermes/.env')",
     'path.parent.mkdir(parents=True, exist_ok=True)',
-    "values = {'ORGO_API_KEY': base64.b64decode('" + encodedKey + "').decode(), 'ORGO_DEFAULT_COMPUTER_ID': '" + id + "'}",
-    "lines = path.read_text().splitlines() if path.exists() else []",
+    "values = {'ORGO_API_KEY': base64.b64decode('" +
+      encodedKey +
+      "').decode(), 'ORGO_DEFAULT_COMPUTER_ID': '" +
+      id +
+      "'}",
+    'lines = path.read_text().splitlines() if path.exists() else []',
     "kept = [line for line in lines if not any(line.startswith(key + '=') for key in values)]",
     "path.write_text('\\n'.join(kept + [key + '=' + value for key, value in values.items()]) + '\\n')",
     'os.chmod(path, 0o600)'
   ].join('; ')
 
-  const result = await runOrgoBash(
-    apiKey,
-    id,
-    `python3 -c ${JSON.stringify(script)}`,
-    fetchImpl
-  )
+  const result = await runOrgoBash(apiKey, id, `python3 -c ${JSON.stringify(script)}`, fetchImpl)
 
   if (!result.success) {
     throw new OrgoDesktopError('unavailable', result.output.trim() || 'Could not configure Orgo for remote Hermes.')

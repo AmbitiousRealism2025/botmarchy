@@ -30,8 +30,6 @@ describe('contribution titlebar surface', () => {
     expect(source).toContain("group(['hermes-bots:pane-v2'], { id: 'grp-bots' })")
     expect(source).toContain("group(['workspace'], { id: 'grp-main' })")
     expect(source).toContain('[1, 3.4]')
-    expect(rightSidebarStoreSource).toContain(
-      'storedBoolean(ORGO_DESKTOP_OPEN_KEY, isBotProduct())'
-    )
+    expect(rightSidebarStoreSource).toContain('storedBoolean(ORGO_DESKTOP_OPEN_KEY, isBotProduct())')
   })
 })

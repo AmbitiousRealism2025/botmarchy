@@ -126,7 +126,9 @@ export interface ComposioConnectedAccountLike {
 
 export interface ComposioClientLike {
   toolkits: {
-    get: (query?: Record<string, unknown>) => Promise<{ items?: unknown[]; nextCursor?: string | null; next_cursor?: string | null }>
+    get: (
+      query?: Record<string, unknown>
+    ) => Promise<{ items?: unknown[]; nextCursor?: string | null; next_cursor?: string | null }>
     listCategories: () => Promise<{ items?: unknown[] } | unknown[]>
   }
   sessions: {
@@ -226,7 +228,9 @@ export function normalizeAccountStatus(raw: string | undefined, disabled?: boole
     return 'disconnected'
   }
 
-  const value = String(raw || '').trim().toUpperCase()
+  const value = String(raw || '')
+    .trim()
+    .toUpperCase()
 
   if (value === 'ACTIVE' || value === 'CONNECTED' || value === 'SUCCESS') {
     return 'connected'
@@ -291,7 +295,10 @@ function asString(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
-export function normalizeToolkit(raw: unknown, featuredSlugs = new Set<string>(FEATURED_TOOLKIT_SLUGS)): ConnectorToolkit | null {
+export function normalizeToolkit(
+  raw: unknown,
+  featuredSlugs = new Set<string>(FEATURED_TOOLKIT_SLUGS)
+): ConnectorToolkit | null {
   const item = asRecord(raw)
 
   if (!item) {
@@ -316,7 +323,10 @@ export function normalizeToolkit(raw: unknown, featuredSlugs = new Set<string>(F
     slug,
     name: asString(item.name) || asString(toolkit.name) || slug,
     description:
-      asString(item.description) || asString(toolkit.description) || asString(meta.description) || `Connect ${slug} through Composio.`,
+      asString(item.description) ||
+      asString(toolkit.description) ||
+      asString(meta.description) ||
+      `Connect ${slug} through Composio.`,
     logo: asString(item.logo) || asString(toolkit.logo) || asString(meta.logo) || null,
     category: categoryName || 'Other',
     featured: featuredSlugs.has(slug),
@@ -344,7 +354,10 @@ export function normalizeCategory(raw: unknown): ConnectorCategory | null {
   return { id, name: asString(item.name) || id }
 }
 
-function ownedAccounts(items: ComposioConnectedAccountLike[] | undefined, slug?: string): ComposioConnectedAccountLike[] {
+function ownedAccounts(
+  items: ComposioConnectedAccountLike[] | undefined,
+  slug?: string
+): ComposioConnectedAccountLike[] {
   const wanted = slug ? normalizeToolkitSlug(slug) : ''
 
   return (items || []).filter(item => {
@@ -437,7 +450,11 @@ export function createComposioBroker(deps: ComposioBrokerDeps) {
     return next
   }
 
-  async function listOwnedAccounts(client: ComposioClientLike, userId: string, slug?: string): Promise<ComposioConnectedAccountLike[]> {
+  async function listOwnedAccounts(
+    client: ComposioClientLike,
+    userId: string,
+    slug?: string
+  ): Promise<ComposioConnectedAccountLike[]> {
     const result = await client.connectedAccounts.list({
       userIds: [userId],
       toolkitSlugs: slug ? [slug] : undefined
@@ -550,7 +567,10 @@ export function createComposioBroker(deps: ComposioBrokerDeps) {
 
       try {
         if (isComposioConsumerKey(apiKey)) {
-          await withTimeout(connectClientFor({ apiKey, userId: '', keyHint: '', sessions: {} }).validate(), AUTHORIZE_TIMEOUT_MS)
+          await withTimeout(
+            connectClientFor({ apiKey, userId: '', keyHint: '', sessions: {} }).validate(),
+            AUTHORIZE_TIMEOUT_MS
+          )
         } else {
           const client = await deps.createClient(apiKey)
           await withTimeout(client.toolkits.listCategories(), AUTHORIZE_TIMEOUT_MS)
@@ -834,7 +854,9 @@ export function createComposioBroker(deps: ComposioBrokerDeps) {
 
       if (consumerKey(state)) {
         await deps.openExternal('https://dashboard.composio.dev')
-        throw new Error('Disconnect that app from Composio → Install. Hermes will keep using the shared Connect MCP until you do.')
+        throw new Error(
+          'Disconnect that app from Composio → Install. Hermes will keep using the shared Connect MCP until you do.'
+        )
       }
 
       const client = await clientFor(state)
@@ -847,13 +869,19 @@ export function createComposioBroker(deps: ComposioBrokerDeps) {
       for (const account of accounts) {
         try {
           if (typeof client.connectedAccounts.disable === 'function') {
-            await withTimeout(client.connectedAccounts.disable(account.id, { timeout: DELETE_TIMEOUT_MS, maxRetries: 0 }), DELETE_TIMEOUT_MS)
+            await withTimeout(
+              client.connectedAccounts.disable(account.id, { timeout: DELETE_TIMEOUT_MS, maxRetries: 0 }),
+              DELETE_TIMEOUT_MS
+            )
           }
         } catch {
           // Revoke is best-effort; deletion still has to run.
         }
 
-        await withTimeout(client.connectedAccounts.delete(account.id, { timeout: DELETE_TIMEOUT_MS, maxRetries: 0 }), DELETE_TIMEOUT_MS)
+        await withTimeout(
+          client.connectedAccounts.delete(account.id, { timeout: DELETE_TIMEOUT_MS, maxRetries: 0 }),
+          DELETE_TIMEOUT_MS
+        )
       }
 
       return { slug, status: 'disconnected' }
@@ -928,16 +956,12 @@ export function createComposioBroker(deps: ComposioBrokerDeps) {
 
       return { synced, removed, toolkits }
     }
-
   }
 }
 
 export type ComposioBroker = ReturnType<typeof createComposioBroker>
 
-export function createBrokerFromStoreIo(
-  io: ComposioStoreIo,
-  deps: Omit<ComposioBrokerDeps, 'store'>
-): ComposioBroker {
+export function createBrokerFromStoreIo(io: ComposioStoreIo, deps: Omit<ComposioBrokerDeps, 'store'>): ComposioBroker {
   return createComposioBroker({ ...deps, store: createComposioStore(io) })
 }
 

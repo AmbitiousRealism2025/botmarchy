@@ -20,6 +20,8 @@ export async function syncConnectorsToRoster(profiles?: Array<{ name?: string }>
   const gateway = $gateway.get()
 
   if (gateway) {
-    await gateway.request('reload.mcp', { confirm: true, session_id: $activeSessionId.get() ?? undefined }).catch(() => undefined)
+    await gateway
+      .request('reload.mcp', { confirm: true, session_id: $activeSessionId.get() ?? undefined })
+      .catch(() => undefined)
   }
 }

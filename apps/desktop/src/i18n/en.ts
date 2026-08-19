@@ -233,7 +233,8 @@ export const en: Translations = {
     yoursEmpty: 'Connected apps will show up here.',
     noMatches: 'No apps match that search.',
     keyTitle: 'Composio API key',
-    keyHelp: 'Paste the Connect key from Composio → Install (starts with ck_). It is encrypted with the OS keychain and never sent to chat.',
+    keyHelp:
+      'Paste the Connect key from Composio → Install (starts with ck_). It is encrypted with the OS keychain and never sent to chat.',
     keyLabel: 'Composio API key',
     keyPlaceholder: 'Paste a Composio Connect API key (ck_…)',
     keyRequired: 'Add a Composio key to browse and connect apps.',
@@ -242,7 +243,8 @@ export const en: Translations = {
     getKey: 'Get a key from Composio → Install',
     savingKey: 'Saving key…',
     removeKeyTitle: 'Remove Composio key?',
-    removeKeyHelp: 'Connected apps stay at Composio until you disconnect them, but Hermes will stop provisioning them to bots.',
+    removeKeyHelp:
+      'Connected apps stay at Composio until you disconnect them, but Hermes will stop provisioning them to bots.',
     replaceKeyTitle: 'Replace Composio key',
     replaceKeyHelp: 'A new key may belong to a different Composio project. Sessions will be rebuilt after it is saved.',
     connectedHelp: 'Available to every bot.',

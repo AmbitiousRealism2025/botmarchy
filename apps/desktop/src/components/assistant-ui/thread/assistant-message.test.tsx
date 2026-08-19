@@ -70,7 +70,10 @@ function Harness({
 }: {
   isRunning?: boolean
   messages?: ThreadMessage[]
-  onRestoreToMessage?: (messageId: string, target?: { text?: string; userOrdinal?: number | null }) => Promise<void> | void
+  onRestoreToMessage?: (
+    messageId: string,
+    target?: { text?: string; userOrdinal?: number | null }
+  ) => Promise<void> | void
 }) {
   const runtime = useExternalStoreRuntime<ThreadMessage>({
     messages,
@@ -161,21 +164,27 @@ describe('AssistantMessage checkpoint action', () => {
       <Harness messages={[userMessage(), first, secondUser, final]} onRestoreToMessage={() => undefined} />
     )
 
-    const firstRoot = (await screen.findByText('First agent update')).closest('[data-slot="aui_assistant-message-root"]')
-    const finalRoot = (await screen.findByText('Final agent answer')).closest('[data-slot="aui_assistant-message-root"]')
+    const firstRoot = (await screen.findByText('First agent update')).closest(
+      '[data-slot="aui_assistant-message-root"]'
+    )
+    const finalRoot = (await screen.findByText('Final agent answer')).closest(
+      '[data-slot="aui_assistant-message-root"]'
+    )
 
     expect(firstRoot?.querySelectorAll('[data-slot="aui_msg-actions"]')).toHaveLength(1)
     expect(finalRoot?.querySelectorAll('[data-slot="aui_msg-actions"]')).toHaveLength(1)
     expect(container.querySelectorAll('[data-slot="aui_msg-actions"]')).toHaveLength(2)
     expect(firstRoot?.querySelector('[data-slot="aui_msg-actions"]')?.parentElement?.className).toContain('opacity-0')
-    expect(finalRoot?.querySelector('[data-slot="aui_msg-actions"]')?.parentElement?.className).not.toContain('opacity-0')
+    expect(finalRoot?.querySelector('[data-slot="aui_msg-actions"]')?.parentElement?.className).not.toContain(
+      'opacity-0'
+    )
     expect(finalRoot?.querySelector('[data-slot="aui_msg-actions"]')?.parentElement?.className).toContain('justify-end')
-    expect(firstRoot?.querySelector('[data-slot="aui_msg-actions"]')?.parentElement?.parentElement?.className).toContain(
-      'left-full'
-    )
-    expect(finalRoot?.querySelector('[data-slot="aui_msg-actions"]')?.parentElement?.parentElement?.className).toContain(
-      'left-full'
-    )
+    expect(
+      firstRoot?.querySelector('[data-slot="aui_msg-actions"]')?.parentElement?.parentElement?.className
+    ).toContain('left-full')
+    expect(
+      finalRoot?.querySelector('[data-slot="aui_msg-actions"]')?.parentElement?.parentElement?.className
+    ).toContain('left-full')
   })
 
   it('buffers streaming prose behind one compact activity indicator', async () => {

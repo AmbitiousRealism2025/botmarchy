@@ -189,13 +189,14 @@ test('installs Hermes on a computer that does not have it yet', async () => {
     return json({ id: COMPUTER_ID, name: 'Shared', status: 'running', instance_id: '8b517302' })
   }) as typeof fetch
 
-  const result = await withHermesProduct(() =>
-    ensureHermesInstalledOnOrgo('orgo-secret', COMPUTER_ID, fetchImpl)
-  )
+  const result = await withHermesProduct(() => ensureHermesInstalledOnOrgo('orgo-secret', COMPUTER_ID, fetchImpl))
 
   assert.equal(result.installed, true)
   assert.equal(result.installedNow, true)
-  assert.equal(commands.some(command => command.includes('install.sh')), true)
+  assert.equal(
+    commands.some(command => command.includes('install.sh')),
+    true
+  )
 })
 
 test('does not install an unpinned latest Hermes build in the Bot product', async () => {
@@ -218,7 +219,10 @@ test('does not install an unpinned latest Hermes build in the Bot product', asyn
     () => withBotProduct(() => ensureHermesInstalledOnOrgo('orgo-secret', COMPUTER_ID, fetchImpl)),
     /will not install an unpinned Hermes build/
   )
-  assert.equal(commands.some(command => command.includes('install.sh')), false)
+  assert.equal(
+    commands.some(command => command.includes('install.sh')),
+    false
+  )
 })
 
 test('skips the installer when Hermes is already on PATH', async () => {
@@ -239,7 +243,10 @@ test('skips the installer when Hermes is already on PATH', async () => {
 
   const result = await ensureHermesInstalledOnOrgo('orgo-secret', COMPUTER_ID, fetchImpl)
   assert.equal(result.installedNow, false)
-  assert.equal(commands.some(command => command.includes('install.sh')), false)
+  assert.equal(
+    commands.some(command => command.includes('install.sh')),
+    false
+  )
 })
 
 test('uses Orgo curated Hermes template and does not reinstall on that snapshot', async () => {
@@ -277,7 +284,12 @@ test('uses Orgo curated Hermes template and does not reinstall on that snapshot'
   )
   assert.equal(
     pickSharedHermesComputer([
-      { id: 'aaaaaaaa-3864-494b-a82c-15280c5d9f9e', name: 'Claude', status: 'running', templateRef: 'system/claude-code@1.0.0' },
+      {
+        id: 'aaaaaaaa-3864-494b-a82c-15280c5d9f9e',
+        name: 'Claude',
+        status: 'running',
+        templateRef: 'system/claude-code@1.0.0'
+      },
       { id: COMPUTER_ID, name: 'Hermes', status: 'running', templateRef: 'system/hermes-agent@1.0.0' }
     ])?.id,
     COMPUTER_ID
@@ -349,7 +361,10 @@ test('starts Tailscale and returns the VM authorization challenge', async () => 
 
   const status = await beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl)
   assert.equal(status.authUrl, 'https://login.tailscale.com/a/setup123')
-  assert.equal(commands.some(command => command.includes('--ssh')), true)
+  assert.equal(
+    commands.some(command => command.includes('--ssh')),
+    true
+  )
 })
 
 test('writes the Orgo key to the remote secret env rather than MCP config', async () => {

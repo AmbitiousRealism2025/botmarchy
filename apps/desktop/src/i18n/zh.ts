@@ -2889,7 +2889,8 @@ export const zh: Translations = {
       configure: '配置电脑',
       screenAria: 'Orgo 电脑屏幕',
       setupTitle: '连接 Orgo 电脑',
-      setupDescription: '默认情况下，此连接会在所有代理之间共享。仅当代理需要不同电脑时才单独配置。Orgo API 密钥会保存在操作系统的加密凭据存储中。',
+      setupDescription:
+        '默认情况下，此连接会在所有代理之间共享。仅当代理需要不同电脑时才单独配置。Orgo API 密钥会保存在操作系统的加密凭据存储中。',
       computerId: 'Orgo 电脑 ID',
       computerIdPlaceholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
       apiKey: 'Orgo API 密钥',

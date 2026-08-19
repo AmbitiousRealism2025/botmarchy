@@ -426,7 +426,9 @@ export function ConnectorsPanel({ active = true }: { active?: boolean }) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                     <span className="truncate">{item.name}</span>
-                    {status === 'connected' ? <span aria-hidden="true" className="size-1.5 rounded-full bg-emerald-500" /> : null}
+                    {status === 'connected' ? (
+                      <span aria-hidden="true" className="size-1.5 rounded-full bg-emerald-500" />
+                    ) : null}
                   </div>
                   <div className="truncate text-[length:var(--conversation-caption-font-size)] text-(--ui-text-tertiary)">
                     {item.description}

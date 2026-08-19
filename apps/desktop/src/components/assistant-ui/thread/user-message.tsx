@@ -315,11 +315,7 @@ const AgentMessageNote: FC<{ text: string }> = ({ text }) => {
         {groupHandles.length > 0 ? (
           <span className="flex shrink-0 items-center gap-0.5" data-slot="aui_agent-message-avatar-stack">
             {groupHandles.map((groupHandle, index) => (
-              <AgentAvatar
-                className="size-4"
-                handle={groupHandle}
-                key={`${groupHandle}:${index}`}
-              />
+              <AgentAvatar className="size-4" handle={groupHandle} key={`${groupHandle}:${index}`} />
             ))}
           </span>
         ) : (
@@ -546,10 +542,7 @@ export const UserMessage: FC<{
               >
                 {readOnly ? (
                   // Spectator transcript: fully readable, but never editable.
-                  <div
-                    className={cn(bubbleClassName, 'cursor-default')}
-                    data-slot="aui_user-message-bubble"
-                  >
+                  <div className={cn(bubbleClassName, 'cursor-default')} data-slot="aui_user-message-bubble">
                     {bubbleContent}
                   </div>
                 ) : (

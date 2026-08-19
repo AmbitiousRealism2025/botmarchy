@@ -362,10 +362,7 @@ const DEFAULT_TREE = split(
 // fixed computer/routines rail mounted by ContribController at right.
 const BOT_TREE = split(
   'row',
-  [
-    group(['hermes-bots:pane-v2'], { id: 'grp-bots' }),
-    group(['workspace'], { id: 'grp-main' })
-  ],
+  [group(['hermes-bots:pane-v2'], { id: 'grp-bots' }), group(['workspace'], { id: 'grp-main' })],
   [1, 3.4],
   'spl-root'
 )
@@ -740,7 +737,11 @@ export function ContribController() {
 
   return (
     <SidebarProvider
-      className={isBotProduct() ? 'h-screen min-h-0 flex-col bg-background bot-product-shell' : 'h-screen min-h-0 flex-col bg-background'}
+      className={
+        isBotProduct()
+          ? 'h-screen min-h-0 flex-col bg-background bot-product-shell'
+          : 'h-screen min-h-0 flex-col bg-background'
+      }
       onOpenChange={setSidebarOpen}
       open={sidebarOpen}
       style={{ '--sidebar-width': '100%' } as CSSProperties}

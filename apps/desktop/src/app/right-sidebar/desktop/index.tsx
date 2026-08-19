@@ -13,11 +13,7 @@ import { ChevronLeft, Clipboard, Maximize, RefreshCw, X } from '@/lib/icons'
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 import type { CronJob } from '@/types/hermes'
 
-import {
-  $orgoDesktopOpen,
-  $orgoDesktopSettingsRequest,
-  clearOrgoDesktopSettingsRequest
-} from '../store'
+import { $orgoDesktopOpen, $orgoDesktopSettingsRequest, clearOrgoDesktopSettingsRequest } from '../store'
 
 import { AgentRoutines, RoutineEditor } from './routines'
 
@@ -238,7 +234,14 @@ export function OrgoDesktopPane() {
         setError(copy.disconnectedUnexpectedly)
       }
     })
-  }, [activeProfile, copy.connectionFailed, copy.disconnectedUnexpectedly, copy.securityFailure, measureScreenAspect, viewOnly])
+  }, [
+    activeProfile,
+    copy.connectionFailed,
+    copy.disconnectedUnexpectedly,
+    copy.securityFailure,
+    measureScreenAspect,
+    viewOnly
+  ])
 
   useEffect(() => {
     let cancelled = false
@@ -380,7 +383,6 @@ export function OrgoDesktopPane() {
       rfbRef.current?.focus({ preventScroll: true })
     }
   }
-
 
   // A machine can change resolution while we are watching it — xrandr on the
   // remote box, or a session that renegotiates. Sampling once at connect left
@@ -541,7 +543,6 @@ export function OrgoDesktopPane() {
 
           <div className="relative flex h-8 items-center justify-center px-7 pt-0.5">
             <p className="truncate text-center text-[0.68rem] text-(--ui-text-tertiary)">{label}&apos;s screen</p>
-
           </div>
         </section>
 

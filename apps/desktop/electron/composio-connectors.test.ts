@@ -20,7 +20,11 @@ import {
 } from './composio-connectors'
 import { type ComposioStoredState, type ComposioStoreIo, createComposioStore } from './composio-store'
 
-function createFakeDisk(initialText: string | null = null): { io: ComposioStoreIo; fileText: () => string | null; logs: string[] } {
+function createFakeDisk(initialText: string | null = null): {
+  io: ComposioStoreIo
+  fileText: () => string | null
+  logs: string[]
+} {
   let text = initialText
   const logs: string[] = []
 
@@ -61,22 +65,26 @@ function fakeSession(overrides: Partial<ComposioSessionLike> & { slug?: string }
   return {
     sessionId: overrides.sessionId || 'sess-1',
     mcp: overrides.mcp || { url: 'https://mcp.composio.dev/s1', headers: { authorization: 'Bearer sess' } },
-    authorize: overrides.authorize || (async slug => ({ id: `req-${slug}`, status: 'INITIATED', redirectUrl: `https://connect.composio.dev/${slug}` })),
+    authorize:
+      overrides.authorize ||
+      (async slug => ({ id: `req-${slug}`, status: 'INITIATED', redirectUrl: `https://connect.composio.dev/${slug}` })),
     toolkits: overrides.toolkits
   }
 }
 
-function fakeClient(options: {
-  accounts?: ComposioConnectedAccountLike[]
-  authorize?: ComposioSessionLike['authorize']
-  categories?: unknown[]
-  catalog?: unknown[]
-  create?: (userId: string, config: { toolkits?: string[] }) => Promise<ComposioSessionLike>
-  use?: (id: string) => Promise<ComposioSessionLike>
-  deletes?: string[]
-  disables?: string[]
-  failValidate?: boolean
-} = {}): ComposioClientLike {
+function fakeClient(
+  options: {
+    accounts?: ComposioConnectedAccountLike[]
+    authorize?: ComposioSessionLike['authorize']
+    categories?: unknown[]
+    catalog?: unknown[]
+    create?: (userId: string, config: { toolkits?: string[] }) => Promise<ComposioSessionLike>
+    use?: (id: string) => Promise<ComposioSessionLike>
+    deletes?: string[]
+    disables?: string[]
+    failValidate?: boolean
+  } = {}
+): ComposioClientLike {
   const accounts = options.accounts || []
   const deletes = options.deletes || []
   const disables = options.disables || []
@@ -98,7 +106,10 @@ function fakeClient(options: {
           return options.create(userId, config)
         }
 
-        return fakeSession({ sessionId: `sess-${(config.toolkits || []).join(',') || 'none'}`, authorize: options.authorize })
+        return fakeSession({
+          sessionId: `sess-${(config.toolkits || []).join(',') || 'none'}`,
+          authorize: options.authorize
+        })
       },
       use: async id => {
         if (options.use) {
@@ -179,7 +190,9 @@ test('failed key validation does not persist the candidate key', async () => {
 })
 
 test('redaction strips keys, bearer tokens, and query strings', () => {
-  const redacted = redactComposioSecrets('invalid ak_live_supersecret Bearer abc.def https://mcp.composio.dev/x?token=1')
+  const redacted = redactComposioSecrets(
+    'invalid ak_live_supersecret Bearer abc.def https://mcp.composio.dev/x?token=1'
+  )
 
   assert.doesNotMatch(redacted, /ak_live_supersecret/)
   assert.doesNotMatch(redacted, /Bearer abc/)

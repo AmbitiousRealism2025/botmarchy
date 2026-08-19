@@ -10,7 +10,17 @@
 
 import { useStore } from '@nanostores/react'
 import { useQueryClient } from '@tanstack/react-query'
-import { type CSSProperties, lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  type CSSProperties,
+  lazy,
+  type ReactNode,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
 import {
@@ -160,9 +170,7 @@ export function ContribWiring({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const botProduct = isBotProduct()
 
-  const [botProviderSetupReady, setBotProviderSetupReady] = useState(
-    () => !botProduct || isBotProviderSetupReady()
-  )
+  const [botProviderSetupReady, setBotProviderSetupReady] = useState(() => !botProduct || isBotProviderSetupReady())
 
   const busyRef = useRef(false)
   const creatingSessionRef = useRef(false)

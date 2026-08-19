@@ -404,7 +404,9 @@ export function BotSetupOverlay({
         ) : null}
         {setup.step === 'bot' ? (
           <div className="mt-4 grid gap-3">
-            <p className="text-sm text-muted-foreground">This is the bot you will land in after setup. You can add more later.</p>
+            <p className="text-sm text-muted-foreground">
+              This is the bot you will land in after setup. You can add more later.
+            </p>
             <Input autoFocus onChange={event => setBotName(event.target.value)} value={botName} />
             <Button disabled={busy} onClick={() => void createBot()}>
               Continue
@@ -413,7 +415,9 @@ export function BotSetupOverlay({
         ) : null}
         {setup.step === 'composio' ? (
           <div className="mt-4 grid gap-3">
-            <p className="text-sm text-muted-foreground">Optional. Paste a Composio Connect key (`ck_…`) to give every bot the same apps.</p>
+            <p className="text-sm text-muted-foreground">
+              Optional. Paste a Composio Connect key (`ck_…`) to give every bot the same apps.
+            </p>
             <Input onChange={event => setComposioKey(event.target.value)} placeholder="ck_…" value={composioKey} />
             <Button disabled={busy} onClick={() => void saveComposio()}>
               {composioKey.trim() ? 'Save and continue' : 'Skip for now'}
@@ -424,8 +428,18 @@ export function BotSetupOverlay({
           <div className="mt-4 grid gap-2">
             <StatusRow detail="Codex or Grok is connected." ok={doctor.provider} title="Runtime + model" />
             <StatusRow detail="Ready to chat." ok={doctor.bot} title="First bot" />
-            <StatusRow detail={doctor.composio ? 'Key saved for every bot.' : 'Skipped — add later from Connectors.'} ok={doctor.composio} title="Connect apps" />
-            <StatusRow detail={doctor.orgo ? 'Computer is selected and MCP is ready.' : 'Skipped — add later from the computer drawer.'} ok={doctor.orgo} title="Shared computer" />
+            <StatusRow
+              detail={doctor.composio ? 'Key saved for every bot.' : 'Skipped — add later from Connectors.'}
+              ok={doctor.composio}
+              title="Connect apps"
+            />
+            <StatusRow
+              detail={
+                doctor.orgo ? 'Computer is selected and MCP is ready.' : 'Skipped — add later from the computer drawer.'
+              }
+              ok={doctor.orgo}
+              title="Shared computer"
+            />
             <Button className="mt-2" onClick={() => finish(false)}>
               Open Bot Chat
             </Button>
