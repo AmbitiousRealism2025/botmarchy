@@ -1,3 +1,5 @@
+import '@/app/bot-product/shell.css'
+
 import { useStore } from '@nanostores/react'
 import { atom, computed } from 'nanostores'
 import type { CSSProperties, ReactElement, PointerEvent as ReactPointerEvent } from 'react'
@@ -40,9 +42,9 @@ import { useContributions } from '@/contrib/react/use-contributions'
 import { registry } from '@/contrib/registry'
 import { discoverRuntimePlugins } from '@/contrib/runtime-loader'
 import { NEW_SESSION_TITLE, sessionTitle as storedSessionTitle } from '@/lib/chat-runtime'
-import { isBotProduct } from '@/lib/product'
 import { Download, FileText, LayoutDashboard, Monitor, PanelBottom, Terminal, Upload, Zap } from '@/lib/icons'
 import { type KeybindContribution, KEYBINDS_AREA } from '@/lib/keybinds/actions'
+import { isBotProduct } from '@/lib/product'
 import { setYoloEnabled } from '@/lib/yolo-session'
 import { pruneComposerPopoutZones } from '@/store/composer-popout'
 import {
@@ -83,7 +85,6 @@ import { ShellContextMenu } from '../shell/shell-context-menu'
 
 import { FilesPane, LogsPane, ReviewPaneContent } from './panes'
 import { ContribWiring, WiredPane } from './wiring'
-import '@/app/bot-product/shell.css'
 
 /**
  * Stripped-down app root (bb/contrib-areas) on the layout TREE model, mounting
@@ -356,7 +357,19 @@ const DEFAULT_TREE = split(
   'spl-root'
 )
 
-const BOT_TREE = split('row', [group(['workspace'], { id: 'grp-main' })], [1], 'spl-root')
+// Bot products open in the messenger layout users already know from Bot Mode:
+// a persistent roster at left, the active Bot Chat in the center, and the
+// fixed computer/routines rail mounted by ContribController at right.
+const BOT_TREE = split(
+  'row',
+  [
+    group(['hermes-bots:pane-v2'], { id: 'grp-bots' }),
+    group(['workspace'], { id: 'grp-main' })
+  ],
+  [1, 3.4],
+  'spl-root'
+)
+
 const PRODUCT_TREE = isBotProduct() ? BOT_TREE : DEFAULT_TREE
 
 const FOCUS_TREE = split('row', [group(['sessions']), group(['workspace', 'files', 'review', 'terminal'])], [1, 4.6])

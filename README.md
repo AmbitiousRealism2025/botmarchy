@@ -6,7 +6,7 @@ It packages the Hermes Agent runtime behind a Bot-first interface. Your Mac runs
 
 > **Private preview:** this repository and its releases are private while the onboarding and distribution flow are being finalized.
 
-![Hermes Bots workspace](docs/images/onboarding/07-bot-workspace.png)
+![Hermes Bots active Bot Chat](docs/images/onboarding/08-bot-chat.png)
 
 ## What you can do
 
@@ -155,6 +155,10 @@ A bot is a Hermes profile with its own:
 - conversation history;
 - canonical Bot Chat;
 - avatar and display metadata.
+
+The normal workspace keeps the bot roster visible on the left, the active Bot Chat in the center, and the shared computer and routines on the right.
+
+![Hermes Bots roster and workspace](docs/images/onboarding/07-bot-workspace.png)
 
 ### Group chats
 

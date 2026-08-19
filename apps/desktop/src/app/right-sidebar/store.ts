@@ -1,5 +1,6 @@
 import { atom } from 'nanostores'
 
+import { isBotProduct } from '@/lib/product'
 import { persistBoolean, storedBoolean } from '@/lib/storage'
 
 const TAKEOVER_KEY = 'hermes.desktop.terminalTakeover'
@@ -11,7 +12,7 @@ $terminalTakeover.subscribe(active => persistBoolean(TAKEOVER_KEY, active))
 
 export const setTerminalTakeover = (active: boolean) => $terminalTakeover.set(active)
 
-export const $orgoDesktopOpen = atom(storedBoolean(ORGO_DESKTOP_OPEN_KEY, false))
+export const $orgoDesktopOpen = atom(storedBoolean(ORGO_DESKTOP_OPEN_KEY, isBotProduct()))
 
 $orgoDesktopOpen.subscribe(active => persistBoolean(ORGO_DESKTOP_OPEN_KEY, active))
 
