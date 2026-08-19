@@ -1,0 +1,6 @@
+.bot-product-shell [data-pane-id='sessions'],
+.bot-product-shell [data-pane-id='files'],
+.bot-product-shell [data-pane-id='review'],
+.bot-product-shell [data-pane-id='terminal'] {
+  display: none !important;
+}
