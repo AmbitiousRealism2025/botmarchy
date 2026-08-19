@@ -21,12 +21,13 @@ export const TAILSCALE_INSTALL_COMMAND =
   'command -v tailscale >/dev/null 2>&1 || curl -fsSL https://tailscale.com/install.sh | sh'
 export const TAILSCALE_START_COMMAND = [
   'if ! tailscale status --json >/dev/null 2>&1; then',
-  '  systemctl enable --now tailscaled >/dev/null 2>&1 || service tailscaled start >/dev/null 2>&1 || true',
-  'fi',
-  'if ! tailscale status --json >/dev/null 2>&1; then',
   '  mkdir -p /var/lib/tailscale /var/run/tailscale',
   '  if ! command -v pgrep >/dev/null 2>&1 || ! pgrep -x tailscaled >/dev/null 2>&1; then',
-  '    nohup tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock >/var/log/tailscaled.log 2>&1 &',
+  '    if command -v setsid >/dev/null 2>&1; then',
+  '      setsid -f tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock >/var/log/tailscaled.log 2>&1',
+  '    else',
+  '      nohup tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock >/var/log/tailscaled.log 2>&1 </dev/null &',
+  '    fi',
   '  fi',
   'fi',
   'for attempt in 1 2 3 4 5 6 7 8 9 10; do',
