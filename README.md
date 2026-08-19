@@ -6,7 +6,7 @@ It packages the Hermes Agent runtime behind a Bot-first interface. Your Mac runs
 
 > **Private preview:** this repository and its releases are private while the onboarding and distribution flow are being finalized.
 
-![Hermes Bots active Bot Chat](docs/images/onboarding/08-bot-chat.png)
+![Hermes Bots connected workspace](docs/images/onboarding/09-connected-workspace.png)
 
 ## What you can do
 
