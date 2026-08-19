@@ -20,18 +20,18 @@ export const HERMES_ORGO_INSTALL_COMMAND = `curl -fsSL ${HERMES_ORGO_INSTALL_SH}
 export const TAILSCALE_INSTALL_COMMAND =
   'command -v tailscale >/dev/null 2>&1 || curl -fsSL https://tailscale.com/install.sh | sh'
 export const TAILSCALE_START_COMMAND = [
-  'if ! tailscale status --json >/dev/null 2>&1; then',
+  'if ! timeout 3s tailscale status --json >/dev/null 2>&1; then',
+  '  command -v pkill >/dev/null 2>&1 && pkill -x tailscaled >/dev/null 2>&1 || true',
+  '  sleep 1',
   '  mkdir -p /var/lib/tailscale /var/run/tailscale',
-  '  if ! command -v pgrep >/dev/null 2>&1 || ! pgrep -x tailscaled >/dev/null 2>&1; then',
-  '    if command -v setsid >/dev/null 2>&1; then',
-  '      setsid -f tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock >/var/log/tailscaled.log 2>&1',
-  '    else',
-  '      nohup tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock >/var/log/tailscaled.log 2>&1 </dev/null &',
-  '    fi',
+  '  if command -v setsid >/dev/null 2>&1; then',
+  '    setsid -f tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock >/var/log/tailscaled.log 2>&1 </dev/null',
+  '  else',
+  '    nohup tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock >/var/log/tailscaled.log 2>&1 </dev/null &',
   '  fi',
   'fi',
-  'for attempt in 1 2 3 4 5 6 7 8 9 10; do',
-  '  tailscale status --json >/dev/null 2>&1 && exit 0',
+  'for attempt in 1 2 3 4 5 6; do',
+  '  timeout 2s tailscale status --json >/dev/null 2>&1 && exit 0',
   '  sleep 1',
   'done',
   'echo "tailscaled did not start"',
@@ -521,7 +521,12 @@ export async function getOrgoTailscaleStatus(
   computerId: string,
   fetchImpl: typeof fetch = fetch
 ): Promise<TailscaleNodeStatus> {
-  const result = await runOrgoBash(apiKey, computerId, 'tailscale status --json 2>/dev/null || true', fetchImpl)
+  const result = await runOrgoBash(
+    apiKey,
+    computerId,
+    'command -v timeout >/dev/null 2>&1 && timeout 5s tailscale status --json 2>/dev/null || true',
+    fetchImpl
+  )
 
   return parseTailscaleStatus(result.output)
 }
