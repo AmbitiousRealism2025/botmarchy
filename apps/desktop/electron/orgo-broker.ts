@@ -18,20 +18,23 @@ export const HERMES_ORGO_PROBE_COMMAND =
   'command -v hermes >/dev/null 2>&1 && hermes --version'
 export const HERMES_ORGO_INSTALL_COMMAND = `curl -fsSL ${HERMES_ORGO_INSTALL_SH} | bash`
 export const TAILSCALE_INSTALL_COMMAND = [
-  'if ! command -v tailscale >/dev/null 2>&1 || ! command -v tailscaled >/dev/null 2>&1; then',
+  'if ! command -v tailscale >/dev/null 2>&1 || { ! command -v tailscaled >/dev/null 2>&1 && [ ! -x /usr/sbin/tailscaled ]; }; then',
   '  curl -fsSL https://tailscale.com/install.sh | sh',
   'fi',
-  'command -v tailscale >/dev/null 2>&1 && command -v tailscaled >/dev/null 2>&1'
+  'command -v tailscale >/dev/null 2>&1 && { command -v tailscaled >/dev/null 2>&1 || [ -x /usr/sbin/tailscaled ]; }'
 ].join('\n')
 export const TAILSCALE_START_COMMAND = [
+  'tailscaled_bin="$(command -v tailscaled 2>/dev/null || true)"',
+  '[ -n "$tailscaled_bin" ] || tailscaled_bin=/usr/sbin/tailscaled',
+  '[ -x "$tailscaled_bin" ] || { echo "tailscaled executable not found"; exit 1; }',
   'if ! timeout 3s tailscale status --json >/dev/null 2>&1; then',
   '  command -v pkill >/dev/null 2>&1 && pkill -x tailscaled >/dev/null 2>&1 || true',
   '  sleep 1',
   '  mkdir -p /var/lib/tailscale /var/run/tailscale',
   '  if command -v setsid >/dev/null 2>&1; then',
-  '    setsid -f tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock >/var/log/tailscaled.log 2>&1 </dev/null',
+  '    setsid -f "$tailscaled_bin" --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock >/var/log/tailscaled.log 2>&1 </dev/null',
   '  else',
-  '    nohup tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock >/var/log/tailscaled.log 2>&1 </dev/null &',
+  '    nohup "$tailscaled_bin" --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock >/var/log/tailscaled.log 2>&1 </dev/null &',
   '  fi',
   'fi',
   'for attempt in 1 2 3 4 5 6; do',

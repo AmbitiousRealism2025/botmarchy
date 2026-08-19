@@ -370,11 +370,12 @@ test('starts Tailscale and returns the VM authorization challenge', async () => 
   const status = await beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl)
   assert.equal(status.authUrl, 'https://login.tailscale.com/a/setup123')
   assert.equal(commands.some(command => command.includes('command -v tailscaled')), true)
+  assert.equal(commands.some(command => command.includes('/usr/sbin/tailscaled')), true)
   assert.equal(commands.some(command => command.includes('--ssh')), true)
   assert.equal(commands.some(command => command.includes('timeout 12s tailscale up')), true)
   assert.equal(commands.some(command => command.includes('timeout 3s tailscale status')), true)
   assert.equal(commands.some(command => command.includes('pkill -x tailscaled')), true)
-  assert.equal(commands.some(command => command.includes('nohup tailscaled')), true)
+  assert.equal(commands.some(command => command.includes('nohup "$tailscaled_bin"')), true)
 })
 
 test('falls back to tailscale login when up omits the authorization URL', async () => {
