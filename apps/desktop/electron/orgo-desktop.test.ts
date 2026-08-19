@@ -5,6 +5,7 @@ import { test } from 'vitest'
 import {
   fetchOrgoDesktopSession,
   normalizeOrgoComputerId,
+  normalizeOptionalOrgoComputerId,
   privateOrgoWebsocketUrl,
   resolveOrgoDesktopProfile,
   serializeOrgoDesktopError
@@ -23,6 +24,13 @@ test('normalizes a valid Orgo computer id and rejects malformed input', () => {
       return true
     }
   )
+})
+
+test('allows the key-only onboarding stage before a computer id exists', () => {
+  assert.equal(normalizeOptionalOrgoComputerId(undefined), '')
+  assert.equal(normalizeOptionalOrgoComputerId('   '), '')
+  assert.equal(normalizeOptionalOrgoComputerId(` ${COMPUTER_ID} `), COMPUTER_ID)
+  assert.throws(() => normalizeOptionalOrgoComputerId('dewey'))
 })
 
 test('builds a private VNC URL only for Tailscale hosts', () => {

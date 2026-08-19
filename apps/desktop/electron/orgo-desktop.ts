@@ -86,6 +86,13 @@ export function normalizeOrgoComputerId(value: unknown): string {
   return computerId
 }
 
+/** The onboarding key-save stage intentionally runs before a computer exists. */
+export function normalizeOptionalOrgoComputerId(value: unknown): string {
+  const computerId = String(value ?? '').trim()
+
+  return computerId ? normalizeOrgoComputerId(computerId) : ''
+}
+
 function unwrapRecord(value: unknown, keys: string[]): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {}

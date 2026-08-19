@@ -200,7 +200,7 @@ import {
 } from './orgo-broker'
 import {
   fetchOrgoDesktopSession,
-  normalizeOrgoComputerId,
+  normalizeOptionalOrgoComputerId,
   resolveOrgoDesktopProfile,
   serializeOrgoDesktopError
 } from './orgo-desktop'
@@ -7046,7 +7046,7 @@ function readOrgoDesktopConfig(): SavedOrgoDesktopConfig {
 
       try {
         profile = orgoDesktopProfileKey(rawProfile)
-        computerId = normalizeOrgoComputerId((rawEntry as any)?.computerId)
+        computerId = normalizeOptionalOrgoComputerId((rawEntry as any)?.computerId)
       } catch {
         continue
       }
@@ -7172,7 +7172,7 @@ function sanitizeOrgoDesktopConfig(profile) {
 
 function saveOrgoDesktopConfig(payload) {
   const profile = orgoDesktopProfileKey(payload?.profile)
-  const computerId = normalizeOrgoComputerId(payload?.computerId)
+  const computerId = normalizeOptionalOrgoComputerId(payload?.computerId)
   const config = readOrgoDesktopConfig()
   const current = resolveOrgoDesktopProfile(config.profiles, profile).entry
   const apiKeyValue = String(payload?.apiKey ?? '').trim()
