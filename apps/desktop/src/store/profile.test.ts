@@ -108,6 +108,15 @@ describe('ensureGatewayProfile → $connection sync (#46651)', () => {
     expect(ensureGatewayForProfile).not.toHaveBeenCalled()
     expect($connection.get()?.mode).toBe('remote')
   })
+
+  it('does not publish a profile whose navigation intent became stale while waking', async () => {
+    await ensureGatewayProfile('vps-remote', { isCurrent: () => false })
+
+    expect(ensureGatewayForProfile).toHaveBeenCalledWith('vps-remote')
+    expect($activeGatewayProfile.get()).toBe('default')
+    expect(getConnection).not.toHaveBeenCalled()
+    expect($connection.get()?.profile).toBe('default')
+  })
 })
 
 describe('profile-scoped cache invalidation', () => {

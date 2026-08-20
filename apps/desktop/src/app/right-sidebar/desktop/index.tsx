@@ -507,9 +507,12 @@ export function OrgoDesktopPane() {
       ) : null}
 
       {fullscreen ? (
-        <div className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-lg bg-black/70 p-1 text-white backdrop-blur-sm">
+        // Always light-on-dark: ghost buttons inherit theme text tokens, so in
+        // light mode they would paint dark icons onto this black chrome.
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-lg bg-black/70 p-1 backdrop-blur-sm">
           <Button
             aria-label={copy.pasteClipboard}
+            className="text-white hover:bg-white/15 hover:text-white disabled:text-white/40"
             disabled={state !== 'connected' || viewOnly}
             onClick={() => void pasteClipboard()}
             size="icon-sm"
@@ -517,7 +520,13 @@ export function OrgoDesktopPane() {
           >
             <Clipboard />
           </Button>
-          <Button aria-label="Exit fullscreen" onClick={leaveFullscreen} size="icon-sm" variant="ghost">
+          <Button
+            aria-label="Exit fullscreen"
+            className="text-white hover:bg-white/15 hover:text-white"
+            onClick={leaveFullscreen}
+            size="icon-sm"
+            variant="ghost"
+          >
             <X />
           </Button>
         </div>

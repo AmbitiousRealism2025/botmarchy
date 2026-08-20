@@ -1,5 +1,5 @@
 name: '🔧 Setup / Installation Help'
-description: Having trouble installing or configuring Hermes Bots? Ask here.
+description: Having trouble installing or configuring Korgo Bot? Ask here.
 title: '[Setup]: '
 labels: ['setup']
 body:
@@ -20,7 +20,7 @@ body:
       label: What's Going Wrong?
       description: Describe what you're trying to do and where it fails.
       placeholder: |
-        I ran the Hermes Bots source setup and opened the app, but the Orgo
+        I ran the Korgo Bot source setup and opened the app, but the Orgo
         connection step fails after...
     validations:
       required: true
@@ -43,7 +43,7 @@ body:
     attributes:
       label: Installation Method
       options:
-        - Hermes Bots source setup script
+        - Korgo Bot source setup script
         - Install script (curl | bash)
         - Manual clone + pip/uv install
         - PowerShell installer (Windows)

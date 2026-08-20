@@ -35,7 +35,7 @@ const define = isDev
 
 if (process.env.HERMES_DESKTOP_PRODUCT === 'bot') {
   define['process.env.HERMES_DESKTOP_PRODUCT'] = JSON.stringify('bot')
-  define['process.env.HERMES_DESKTOP_APP_NAME'] = JSON.stringify('Hermes Bots')
+  define['process.env.HERMES_DESKTOP_APP_NAME'] = JSON.stringify('Korgo Bot')
 }
 
 // Bundle main.ts → dist/electron-main.mjs

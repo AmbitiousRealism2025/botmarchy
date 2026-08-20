@@ -23,6 +23,16 @@ const composerDockEdge = (edge: 'bottom' | 'top') =>
 export const composerDockCard = (edge: 'bottom' | 'top' = 'top') =>
   cn(composerDockEdge(edge), composerFill, composerSurfaceGlass)
 
+/** Detached status card above the composer. Unlike `composerDockCard`, this
+ * keeps all four corners and its own border because it must never visually
+ * merge into or cover the input surface. */
+export const composerStatusCard = cn(
+  'rounded-2xl border border-border/60',
+  'bg-[color-mix(in_srgb,var(--dt-card)_82%,var(--dt-background))]',
+  'shadow-[0_10px_28px_color-mix(in_srgb,var(--dt-background)_38%,transparent)]',
+  composerSurfaceGlass
+)
+
 /** Floating composer panel skin — the `/`·`@`·`?` completion drawer and the
  *  attach (`+`) menu. Glassy translucent card, hairline border, full radius,
  *  smallest type, soft nous shadow. Uses an explicit fill (not `--composer-fill`)

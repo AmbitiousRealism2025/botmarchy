@@ -14,12 +14,12 @@ import type { ComposerStatusItem } from '@/store/composer-status'
 
 const toolLabel = (name: string) => name.split('_').filter(Boolean).map(capitalize).join(' ') || name
 
-// Todo rows speak checkbox, not spinner-and-dot: a dashed ring while the item
-// is still open (pending), codicons once it resolves, a live spinner only on
-// the in-progress item.
+// Todo rows speak checkbox, not spinner-and-dot: a crisp neutral ring while the
+// item is still open (pending), token-colored checks once it resolves, a live
+// spinner only on the in-progress item.
 const TODO_GLYPHS: Record<Exclude<TodoStatus, 'in_progress' | 'pending'>, { icon: string; tone: string }> = {
   cancelled: { icon: 'circle-slash', tone: 'text-muted-foreground/45' },
-  completed: { icon: 'pass-filled', tone: 'text-emerald-500/80' }
+  completed: { icon: 'pass-filled', tone: 'text-[color-mix(in_srgb,var(--ui-green)_82%,transparent)]' }
 }
 
 // Left slot: braille spinner while running, otherwise a small status dot
@@ -31,13 +31,13 @@ function leadingGlyph(item: ComposerStatusItem, s: Translations['statusStack']):
     }
 
     if (item.goalStatus === 'done') {
-      return <Codicon className="text-emerald-500/80" name="pass-filled" size="0.8rem" />
+      return <Codicon className="text-[color-mix(in_srgb,var(--ui-green)_82%,transparent)]" name="pass-filled" size="0.8rem" />
     }
 
     return (
       <GlyphSpinner
         ariaLabel={s.running}
-        className="text-[0.85rem] leading-none text-emerald-500/80"
+        className="text-[0.85rem] leading-none text-[color-mix(in_srgb,var(--ui-green)_82%,transparent)]"
         spinner="braille"
       />
     )
@@ -47,7 +47,7 @@ function leadingGlyph(item: ComposerStatusItem, s: Translations['statusStack']):
     return (
       <span
         aria-hidden
-        className="box-border size-[0.7rem] rounded-full border border-dashed border-muted-foreground/60"
+        className="box-border size-[0.72rem] rounded-full border border-[color-mix(in_srgb,var(--ui-text-tertiary)_72%,transparent)]"
       />
     )
   }
@@ -62,7 +62,7 @@ function leadingGlyph(item: ComposerStatusItem, s: Translations['statusStack']):
     return (
       <GlyphSpinner
         ariaLabel={s.running}
-        className="text-[0.85rem] leading-none text-muted-foreground/80"
+        className="text-[0.85rem] leading-none text-foreground/78"
         spinner="braille"
       />
     )
@@ -71,7 +71,12 @@ function leadingGlyph(item: ComposerStatusItem, s: Translations['statusStack']):
   return (
     <span
       aria-hidden
-      className={cn('size-1.5 rounded-full', item.state === 'failed' ? 'bg-destructive/80' : 'bg-emerald-500/70')}
+      className={cn(
+        'size-1.5 rounded-full',
+        item.state === 'failed'
+          ? 'bg-destructive/80'
+          : 'bg-[color-mix(in_srgb,var(--ui-green)_72%,transparent)]'
+      )}
     />
   )
 }
@@ -97,6 +102,10 @@ export const StatusItemRow = memo(function StatusItemRow({ item, onDismiss, onOp
   const s = t.statusStack
   const failed = item.state === 'failed'
   const running = item.state === 'running'
+  const isTodo = item.type === 'todo'
+  const todoActive = isTodo && item.todoStatus === 'in_progress'
+  const todoCompleted = isTodo && item.todoStatus === 'completed'
+  const todoCancelled = isTodo && item.todoStatus === 'cancelled'
 
   const action =
     item.type === 'background'
@@ -114,8 +123,15 @@ export const StatusItemRow = memo(function StatusItemRow({ item, onDismiss, onOp
   return (
     <Fragment>
       <StatusRow
+        className={cn(
+          isTodo && 'min-h-7 px-2 py-1',
+          todoActive && 'bg-(--ui-row-active-background)',
+          todoActive && 'shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--ui-accent)_10%,transparent)]'
+        )}
+        data-task-state={isTodo ? item.todoStatus : undefined}
         leading={leadingGlyph(item, s)}
         onActivate={onActivate}
+        suppressHover={isTodo}
         trailing={
           action ? (
             <Tip label={action.label}>
@@ -140,12 +156,19 @@ export const StatusItemRow = memo(function StatusItemRow({ item, onDismiss, onOp
       >
         <span
           className={cn(
-            'min-w-0 truncate text-[0.73rem] leading-4',
+            'min-w-0 truncate leading-[1.125rem]',
+            isTodo ? 'text-[0.8125rem]' : 'text-[0.73rem] leading-4',
             failed
               ? 'text-destructive/90'
-              : item.todoStatus && item.todoStatus !== 'in_progress'
-                ? 'text-muted-foreground/75'
-                : 'text-foreground/92'
+              : todoCompleted || todoCancelled
+                ? 'text-muted-foreground/68'
+                : todoActive
+                  ? 'font-medium text-foreground/94'
+                  : isTodo
+                    ? 'text-foreground/86'
+                    : item.todoStatus && item.todoStatus !== 'in_progress'
+                      ? 'text-muted-foreground/75'
+                      : 'text-foreground/92'
           )}
         >
           {item.title}

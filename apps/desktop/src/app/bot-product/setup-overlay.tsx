@@ -4,19 +4,95 @@ import { syncConnectorsToRoster } from '@/app/connectors/provision'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { DesktopTailscaleStatus } from '@/global'
+import { getGlobalModelInfo } from '@/hermes'
+import { Loader2 } from '@/lib/icons'
 import { isBotProduct } from '@/lib/product'
 import { cn } from '@/lib/utils'
 
 const STORAGE_KEY = 'hermes-bot-setup-v2'
 export const BOT_PROVIDER_SETUP_READY_EVENT = 'hermes-bots:provider-setup-ready'
 export const BOT_PROVIDER_SETUP_COMPLETE_EVENT = 'hermes-bots:provider-setup-complete'
+export const BOT_FIRST_PROFILE_EVENT = 'hermes-bots:first-profile'
 
 type SetupStep = 'bot' | 'composio' | 'orgo' | 'provider' | 'ready' | 'tailscale'
 
 interface SetupState {
+  botModel?: string
+  botProfile?: string
+  botProvider?: string
   complete: boolean
   skipped: boolean
   step: SetupStep
+}
+
+type OrgoProvisioningStage = 'checking-mac' | 'private-network' | 'provisioning' | 'saving-key'
+
+const ORGO_PROVISIONING_COPY: Record<OrgoProvisioningStage, { detail: string; title: string }> = {
+  'saving-key': {
+    title: 'Checking your Orgo connection',
+    detail: 'Securely saving the API key and preparing your workspace.'
+  },
+  provisioning: {
+    title: 'Preparing your cloud computer',
+    detail: 'Creating the computer, installing Hermes, and applying your wallpaper. This can take a few minutes.'
+  },
+  'private-network': {
+    title: 'Starting the private connection',
+    detail: 'Installing Tailscale on the cloud computer and requesting its secure sign-in link.'
+  },
+  'checking-mac': {
+    title: 'Checking this Mac',
+    detail: 'Confirming whether this Mac is ready to join the private connection.'
+  }
+}
+
+export function formatBotSetupError(error: unknown, fallback: string): string {
+  const raw = error instanceof Error ? error.message : String(error || '')
+
+  const detail = raw
+    .replace(/^Error invoking remote method '[^']+':\s*/i, '')
+    .replace(/^OrgoDesktopError:\s*/i, '')
+    .trim()
+
+  if (/(?:context cancel+ed|deadline exceeded)/i.test(detail)) {
+    return 'Your cloud computer is ready, but the private connection took too long to start. Try “Authorize cloud computer” again.'
+  }
+
+  if (/"BackendState"\s*:/.test(detail)) {
+    return 'Tailscale is installed on the cloud computer, but it did not provide a sign-in link. Try authorizing again.'
+  }
+
+  return detail.length > 600 ? `${detail.slice(0, 600)}…` : detail || fallback
+}
+
+function OrgoProvisioningProgress({ stage }: { stage: OrgoProvisioningStage }) {
+  const copy = ORGO_PROVISIONING_COPY[stage]
+
+  return (
+    <div
+      aria-live="polite"
+      className="rounded-xl border border-border/70 bg-primary/[0.05] p-3"
+      data-stage={stage}
+      role="status"
+    >
+      <div className="flex items-start gap-2.5">
+        <Loader2 aria-hidden className="mt-0.5 size-4 shrink-0 animate-spin text-primary" />
+        <div className="min-w-0">
+          <div className="text-sm font-medium">{copy.title}</div>
+          <div className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{copy.detail}</div>
+        </div>
+      </div>
+      <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-primary/10">
+        <div className="h-full w-2/3 animate-pulse rounded-full bg-primary/55" />
+      </div>
+    </div>
+  )
+}
+
+export interface FirstBotProfile {
+  model: string
+  name: string
+  provider: string
 }
 
 function readSetup(): SetupState {
@@ -38,7 +114,14 @@ function readSetup(): SetupState {
         ? parsed.step
         : 'orgo'
 
-    return { complete: Boolean(parsed.complete), skipped: Boolean(parsed.skipped), step }
+    return {
+      botModel: typeof parsed.botModel === 'string' ? parsed.botModel : undefined,
+      botProfile: typeof parsed.botProfile === 'string' ? parsed.botProfile : undefined,
+      botProvider: typeof parsed.botProvider === 'string' ? parsed.botProvider : undefined,
+      complete: Boolean(parsed.complete),
+      skipped: Boolean(parsed.skipped),
+      step
+    }
   } catch {
     return { complete: false, skipped: false, step: 'orgo' }
   }
@@ -68,6 +151,40 @@ function slugify(value: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 32)
+}
+
+export async function createFirstBotProfile(
+  titleValue: string,
+  requestGateway: <T = unknown>(method: string, params?: Record<string, unknown>) => Promise<T>
+): Promise<FirstBotProfile> {
+  const title = titleValue.trim() || 'Assistant'
+  const name = slugify(title) || 'assistant'
+  const modelInfo = await getGlobalModelInfo()
+  const model = String(modelInfo.model || '').trim()
+  const provider = String(modelInfo.provider || '').trim()
+
+  if (!model || !provider) {
+    throw new Error('The connected GPT or Grok model could not be resolved. Reconnect the provider and try again.')
+  }
+
+  await requestGateway('profiles.create', {
+    name,
+    description: title,
+    clone_from: null,
+    no_skills: false,
+    model,
+    provider
+  })
+
+  return { model, name, provider }
+}
+
+function announceFirstBotProfile(profile: FirstBotProfile, open: boolean): void {
+  window.dispatchEvent(
+    new CustomEvent(BOT_FIRST_PROFILE_EVENT, {
+      detail: { ...profile, open }
+    })
+  )
 }
 
 function StatusRow({ ok, title, detail }: { ok: boolean; title: string; detail: string }) {
@@ -104,6 +221,7 @@ export function BotSetupOverlay({
   const [remoteTailscale, setRemoteTailscale] = useState<DesktopTailscaleStatus | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [orgoProvisioningStage, setOrgoProvisioningStage] = useState<null | OrgoProvisioningStage>(null)
 
   const [doctor, setDoctor] = useState<{
     provider: boolean
@@ -113,7 +231,38 @@ export function BotSetupOverlay({
   }>({ provider: false, bot: false, composio: false, orgo: false })
 
   useEffect(() => {
-    setSetup(readSetup())
+    let cancelled = false
+    const stored = readSetup()
+    setSetup(stored)
+
+    if (stored.step === 'orgo') {
+      const status = window.hermesDesktop?.orgoDesktop.status()
+
+      if (status) {
+        void status
+          .then(config => {
+            if (cancelled || !config.apiKeySet || !config.computerId) {
+              return
+            }
+
+            setSetup(current => {
+              if (current.step !== 'orgo') {
+                return current
+              }
+
+              const next = { ...current, step: 'tailscale' as const }
+              writeSetup(next)
+
+              return next
+            })
+          })
+          .catch(() => undefined)
+      }
+    }
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -137,7 +286,7 @@ export function BotSetupOverlay({
   }, [])
 
   useEffect(() => {
-    if (setup.step !== 'tailscale') {
+    if (setup.step !== 'tailscale' || busy) {
       return undefined
     }
 
@@ -166,7 +315,7 @@ export function BotSetupOverlay({
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [setup.step])
+  }, [busy, setup.step])
 
   if (!isBotProduct() || !enabled || setup.complete || setup.skipped) {
     return null
@@ -177,9 +326,20 @@ export function BotSetupOverlay({
   }
 
   const finish = (skipped = false) => {
-    const next: SetupState = { complete: true, skipped, step: 'ready' }
+    const next: SetupState = { ...setup, complete: true, skipped, step: 'ready' }
     writeSetup(next)
     setSetup(next)
+
+    if (setup.botProfile && setup.botModel && setup.botProvider) {
+      announceFirstBotProfile(
+        {
+          model: setup.botModel,
+          name: setup.botProfile,
+          provider: setup.botProvider
+        },
+        true
+      )
+    }
   }
 
   const goToStep = (step: SetupStep) => {
@@ -201,17 +361,24 @@ export function BotSetupOverlay({
     setError('')
 
     try {
-      const title = botName.trim() || 'Assistant'
-      const name = slugify(title) || 'assistant'
-      await requestGateway('profiles.create', {
-        name,
-        description: title,
-        clone_from: null,
-        no_skills: false
+      const profile = await createFirstBotProfile(botName, requestGateway)
+
+      setSetup(current => {
+        const next = {
+          ...current,
+          botModel: profile.model,
+          botProfile: profile.name,
+          botProvider: profile.provider,
+          step: 'composio' as const
+        }
+
+        writeSetup(next)
+
+        return next
       })
-      await syncConnectorsToRoster([{ name }])
+      announceFirstBotProfile(profile, false)
+      await syncConnectorsToRoster([{ name: profile.name }]).catch(() => undefined)
       setDoctor(current => ({ ...current, bot: true, provider: true }))
-      goToStep('composio')
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Could not create the first bot.')
     } finally {
@@ -254,22 +421,39 @@ export function BotSetupOverlay({
         return
       }
 
+      setOrgoProvisioningStage('saving-key')
       await window.hermesDesktop?.orgoDesktop.saveKey(key)
+      setOrgoProvisioningStage('provisioning')
       const provisioned = await window.hermesDesktop?.orgoDesktop.provision()
 
       if (!provisioned?.computerId) {
         throw new Error('Orgo did not return a shared computer.')
       }
 
-      await window.hermesDesktop?.orgoDesktop.ensureRunning()
-      const remote = await window.hermesDesktop?.orgoDesktop.beginTailscale()
+      // Persist the completed provisioning boundary before Tailscale begins.
+      // If private-network setup is interrupted, onboarding resumes here and
+      // retries authorization instead of recreating the already-ready computer.
+      goToStep('tailscale')
+      setOrgoProvisioningStage('private-network')
+
+      let remote: DesktopTailscaleStatus | undefined
+
+      try {
+        remote = await window.hermesDesktop?.orgoDesktop.beginTailscale()
+      } catch (caught) {
+        setError(formatBotSetupError(caught, 'Could not start Tailscale on the shared computer.'))
+
+        return
+      }
+
+      setOrgoProvisioningStage('checking-mac')
       const local = await window.hermesDesktop?.orgoDesktop.tailscaleLocalStatus()
       setRemoteTailscale(remote || null)
       setLocalTailscale(local || null)
-      goToStep('tailscale')
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not set up the shared computer.')
+      setError(formatBotSetupError(caught, 'Could not set up the shared computer.'))
     } finally {
+      setOrgoProvisioningStage(null)
       setBusy(false)
     }
   }
@@ -297,7 +481,7 @@ export function BotSetupOverlay({
       const remote = await window.hermesDesktop?.orgoDesktop.beginTailscale()
       setRemoteTailscale(remote || null)
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Could not start Tailscale on the shared computer.')
+      setError(formatBotSetupError(caught, 'Could not start Tailscale on the shared computer.'))
     } finally {
       setBusy(false)
     }
@@ -338,7 +522,7 @@ export function BotSetupOverlay({
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">Hermes Bots</div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">Korgo Bot</div>
         <h1 className="mt-1 text-xl font-semibold">{heading}</h1>
         {setup.step === 'orgo' ? (
           <div className="mt-4 grid gap-3">
@@ -347,14 +531,21 @@ export function BotSetupOverlay({
               to host Hermes.
             </p>
             <Input
+              disabled={busy}
               onChange={event => setOrgoKey(event.target.value)}
               placeholder="Orgo API key"
               type="password"
               value={orgoKey}
             />
-            <Button disabled={busy} onClick={() => void saveOrgo()}>
-              {orgoKey.trim() ? 'Create cloud computer' : 'Use this Mac instead'}
+            <Button aria-busy={busy} disabled={busy} onClick={() => void saveOrgo()}>
+              {busy && orgoProvisioningStage ? <Loader2 aria-hidden className="size-4 animate-spin" /> : null}
+              {busy && orgoProvisioningStage
+                ? ORGO_PROVISIONING_COPY[orgoProvisioningStage].title
+                : orgoKey.trim()
+                  ? 'Create cloud computer'
+                  : 'Use this Mac instead'}
             </Button>
+            {busy && orgoProvisioningStage ? <OrgoProvisioningProgress stage={orgoProvisioningStage} /> : null}
           </div>
         ) : null}
         {setup.step === 'tailscale' ? (
@@ -362,6 +553,7 @@ export function BotSetupOverlay({
             <p className="mb-1 text-sm text-muted-foreground">
               Tailscale gives this Mac a private SSH connection to Hermes on your Orgo computer.
             </p>
+            {busy && orgoProvisioningStage ? <OrgoProvisioningProgress stage={orgoProvisioningStage} /> : null}
             <StatusRow
               detail={
                 localTailscale?.connected
@@ -431,7 +623,9 @@ export function BotSetupOverlay({
             </Button>
           </div>
         ) : null}
-        {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+        {error ? (
+          <p className="mt-3 max-h-28 overflow-y-auto break-words text-sm text-destructive">{error}</p>
+        ) : null}
         {setup.step === 'tailscale' ? (
           <button className="mt-4 text-xs text-muted-foreground underline" onClick={useLocalHermes} type="button">
             Use this Mac instead

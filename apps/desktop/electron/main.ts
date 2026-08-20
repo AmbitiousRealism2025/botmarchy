@@ -182,22 +182,26 @@ import { loadNativeTokenSet, type NativeTokenStoreIo, persistNativeTokenSet } fr
 import { serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
 import {
   beginOrgoTailscaleSetup,
+  BOT_ORGO_LEGACY_WORKSPACE_NAME,
   BOT_ORGO_WORKSPACE_NAME,
-  createOrgoComputer,
-  createOrgoWorkspace,
   doctorOrgoComputer,
   ensureHermesInstalledOnOrgo,
+  ensureOrgoAgentMcpServer,
   ensureOrgoComputerRunning,
+  ensureOrgoDesktopWallpaper,
+  findOrCreateOrgoWorkspace,
+  findOrCreateSharedHermesComputer,
   getOrgoTailscaleStatus,
   listOrgoComputers,
   listOrgoWorkspaces,
+  ORGO_AGENT_MCP_SERVER_NAME,
   ORGO_MCP_SERVER_NAME,
-  orgoMcpEntry,
+  orgoMcpEntries,
   orgoProcessEnv,
   parseTailscaleStatus,
   persistOrgoEnvironmentOnRemote,
-  pickOrgoWorkspaceByName,
-  pickSharedHermesComputer,
+  readBundledOrgoAgentMcpBytes,
+  readBundledOrgoWallpaperBytes,
   resolveHermesAgentTemplateRef
 } from './orgo-broker'
 import {
@@ -212,7 +216,6 @@ import { rehomePrimaryConnection } from './primary-connection-rehome'
 import {
   allowsGenericHermesUpdates,
   applyDesktopProductIdentity,
-  BOT_TEMPLATE_REF,
   desktopAppId,
   desktopAppName,
   isBotProduct
@@ -758,18 +761,21 @@ const WINDOW_BUTTON_POSITION = {
 // (pure + unit-testable); computeNativeOverlayWidth() applies it per platform.
 // It's only the pre-layout fallback — the renderer measures the exact overlay
 // width live via the Window Controls Overlay API.
-// The apple-touch PNG bakes in the macOS-style ~10% margin, which is correct
+// The app PNG bakes in the macOS-style ~10% margin, which is correct
 // for the dock but renders visibly smaller than neighboring taskbar icons on
 // Windows, where icons are full-bleed. Windows prefers the full-bleed
-// assets/icon.ico (shipped to resources/ via extraResources) and only falls
+// ICO (shipped to resources/ via extraResources) and only falls
 // back to the padded PNG if the ico is missing.
+const APP_ICON_PNG = isBotProduct() ? 'korgo-bot-icon.png' : 'apple-touch-icon.png'
+const APP_ICON_ICO = isBotProduct() ? 'korgo-bot-icon.ico' : 'icon.ico'
+
 const APP_ICON_PATHS = [
   ...(IS_WINDOWS
-    ? [path.join(process.resourcesPath ?? '', 'icon.ico'), path.join(APP_ROOT, 'assets', 'icon.ico')]
+    ? [path.join(process.resourcesPath ?? '', APP_ICON_ICO), path.join(APP_ROOT, 'assets', APP_ICON_ICO)]
     : []),
-  path.join(APP_ROOT, 'public', 'apple-touch-icon.png'),
-  path.join(APP_ROOT, 'dist', 'apple-touch-icon.png'),
-  path.join(unpackedPathFor(APP_ROOT), 'dist', 'apple-touch-icon.png')
+  path.join(APP_ROOT, 'public', APP_ICON_PNG),
+  path.join(APP_ROOT, 'dist', APP_ICON_PNG),
+  path.join(unpackedPathFor(APP_ROOT), 'dist', APP_ICON_PNG)
 ]
 
 let rendererTitleBarTheme = null
@@ -6255,7 +6261,15 @@ let _composioBroker: ComposioBroker | null = null
 async function composioProfileApi(profile, spec) {
   const routeProfile = profile && profile !== 'default' ? profile : undefined
   const connection = await ensureBackend(routeProfile)
-  const url = `${connection.baseUrl}${spec.path}`
+
+  // A global remote gateway serves every Hermes profile. Mutating `/api/config`
+  // without the profile query silently writes only the default config, leaving
+  // bot profiles without their Composio and Orgo MCP tools.
+  const requestPath = routeProfile
+    ? pathWithGlobalRemoteProfile(spec.path, routeProfile, profileRouteOptions(routeProfile))
+    : spec.path
+
+  const url = `${connection.baseUrl}${requestPath}`
 
   return fetchJson(url, connection.token, {
     method: spec.method,
@@ -7089,37 +7103,45 @@ function orgoBackendEnv() {
 }
 
 async function upsertOrgoMcp(profile, computerId) {
-  const entry = orgoMcpEntry(computerId)
+  const entries = orgoMcpEntries(computerId)
+
+  const servers = Object.fromEntries(
+    Object.entries(entries).map(([name, entry]) => [
+      name,
+      {
+        command: entry.command,
+        args: entry.args,
+        env: entry.env,
+        trust: entry.trust,
+        ...(entry.timeout ? { timeout: entry.timeout } : {})
+      }
+    ])
+  )
 
   await composioProfileApi(profile, {
     path: '/api/config',
     method: 'PUT',
     body: {
       config: {
-        mcp_servers: {
-          [ORGO_MCP_SERVER_NAME]: {
-            command: entry.command,
-            args: entry.args,
-            env: entry.env,
-            trust: entry.trust
-          }
-        }
+        mcp_servers: servers
       }
     }
   })
 }
 
 async function removeOrgoMcp(profile) {
-  try {
-    await composioProfileApi(profile, {
-      path: `/api/mcp/servers/${encodeURIComponent(ORGO_MCP_SERVER_NAME)}`,
-      method: 'DELETE'
-    })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
+  for (const name of [ORGO_MCP_SERVER_NAME, ORGO_AGENT_MCP_SERVER_NAME]) {
+    try {
+      await composioProfileApi(profile, {
+        path: `/api/mcp/servers/${encodeURIComponent(name)}`,
+        method: 'DELETE'
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
 
-    if (!message.startsWith('404:')) {
-      throw error
+      if (!message.startsWith('404:')) {
+        throw error
+      }
     }
   }
 }
@@ -7143,11 +7165,16 @@ async function syncOrgoMcpToProfiles(profileNames) {
   const names = profileNames?.length ? profileNames : await listOrgoSyncProfiles()
   const entry = resolveOrgoDesktopProfile(readOrgoDesktopConfig().profiles, 'default').entry
   const computerId = entry?.computerId
+  const apiKey = decryptDesktopSecret(entry?.apiKey)
   let synced = 0
 
-  if (!computerId) {
+  if (!computerId || !apiKey) {
     return { synced: 0, computerId: '' }
   }
+
+  await ensureOrgoAgentMcpServer(apiKey, computerId, () =>
+    readBundledOrgoAgentMcpBytes(APP_ROOT, process.resourcesPath)
+  )
 
   for (const profile of names) {
     await upsertOrgoMcp(profile, computerId)
@@ -7225,22 +7252,25 @@ async function provisionOrgoSharedComputer() {
   let computerId = String(current?.computerId || '').trim()
 
   if (!workspaceId) {
-    const workspaces = await listOrgoWorkspaces(apiKey)
     const workspaceName = isBotProduct() ? BOT_ORGO_WORKSPACE_NAME : 'Hermes'
 
-    const workspace =
-      pickOrgoWorkspaceByName(workspaces, workspaceName) || (await createOrgoWorkspace(apiKey, workspaceName))
+    const workspace = await findOrCreateOrgoWorkspace(
+      apiKey,
+      workspaceName,
+      isBotProduct() ? [BOT_ORGO_LEGACY_WORKSPACE_NAME] : []
+    )
 
     workspaceId = workspace.id
   }
 
   if (!computerId) {
-    const computers = await listOrgoComputers(apiKey, workspaceId)
-    const existing = pickSharedHermesComputer(computers, isBotProduct() ? BOT_TEMPLATE_REF : undefined)
     const templateRef = await resolveHermesAgentTemplateRef(apiKey)
 
-    const computer =
-      existing || (await createOrgoComputer(apiKey, { workspaceId, name: 'Shared computer', templateRef }))
+    const computer = await findOrCreateSharedHermesComputer(apiKey, {
+      workspaceId,
+      name: 'Shared computer',
+      templateRef
+    })
 
     computerId = computer.id
   }
@@ -7255,6 +7285,9 @@ async function provisionOrgoSharedComputer() {
 
   await ensureOrgoComputerRunning(apiKey, computerId)
   await ensureHermesInstalledOnOrgo(apiKey, computerId)
+  await ensureOrgoDesktopWallpaper(apiKey, computerId, () =>
+    readBundledOrgoWallpaperBytes(APP_ROOT, process.resourcesPath)
+  )
   await persistOrgoEnvironmentOnRemote(apiKey, computerId)
   await syncOrgoMcpToProfiles([])
 
@@ -10899,6 +10932,9 @@ ipcMain.handle('hermes:orgo-desktop:ensure-running', async () => {
   }
 
   const computer = await ensureOrgoComputerRunning(apiKey, entry.computerId)
+  await ensureOrgoDesktopWallpaper(apiKey, entry.computerId, () =>
+    readBundledOrgoWallpaperBytes(APP_ROOT, process.resourcesPath)
+  ).catch(() => undefined)
 
   return { ok: true, computer }
 })
@@ -12613,7 +12649,7 @@ ipcMain.handle('hermes:updates:check', async () =>
   !allowsGenericHermesUpdates()
     ? {
         supported: false,
-        message: 'Update by pulling a reviewed Hermes Bots source release.',
+        message: 'Update by pulling a reviewed Korgo Bot source release.',
         fetchedAt: Date.now()
       }
     : checkUpdates().catch(error => ({
@@ -12630,7 +12666,7 @@ ipcMain.handle('hermes:updates:apply', async (_event, payload) =>
     ? {
         ok: false,
         error: 'unavailable',
-        message: 'Pull a reviewed Hermes Bots source release and rerun the setup script.'
+        message: 'Pull a reviewed Korgo Bot source release and rerun the setup script.'
       }
     : applyUpdates(payload || {}).catch(error => ({
         ok: false,

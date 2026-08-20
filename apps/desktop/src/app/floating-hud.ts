@@ -13,11 +13,13 @@ export const HUD_POSITION =
 
 // Matches the app's borderless-overlay surface (dialog, keybind panel, …):
 // hairline `--stroke-nous` paired with the soft `--shadow-nous` float.
-// `no-drag`: these HUDs overlap the titlebar's `[-webkit-app-region:drag]` band
-// (app-shell.tsx), which wins hit-testing over DOM regardless of z-index — so
-// without it the top of the surface (the search input) swallows clicks.
+// Uses `--ui-panel-background` so light/dark Orgo both stay opaque + readable
+// (Cmd+K, session switcher). `no-drag`: these HUDs overlap the titlebar's
+// `[-webkit-app-region:drag]` band (app-shell.tsx), which wins hit-testing over
+// DOM regardless of z-index — so without it the top of the surface (the search
+// input) swallows clicks.
 export const HUD_SURFACE =
-  'rounded-xl border border-(--stroke-nous) bg-(--ui-chat-bubble-background) shadow-nous [-webkit-app-region:no-drag]'
+  'rounded-xl border border-(--stroke-nous) bg-(--ui-panel-background) shadow-nous [-webkit-app-region:no-drag]'
 
 // One row/text size for both HUDs (compact — two notches under `text-sm`).
 export const HUD_TEXT = 'text-xs'

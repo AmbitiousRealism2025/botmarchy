@@ -71,6 +71,7 @@ const ROUTINES_KEY = [ID, 'routines']
 const GROUPS_STORAGE_KEY = 'bot-groups-v1'
 const PINNED_STORAGE_KEY = 'bot-pins-v1'
 const DELETED_STORAGE_KEY = 'bot-deleted-v1'
+const FIRST_BOT_PROFILE_EVENT = 'hermes-bots:first-profile'
 const CANONICAL_CHAT_TITLE = 'Bot Chat'
 const NAME_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/
 
@@ -114,9 +115,28 @@ function syncConnectorsForRoster(roster, { force = false } = {}) {
   }
 
   if (syncs.length > 0) {
-    Promise.allSettled(syncs).then(() =>
-      host.request('reload.mcp', { confirm: true }).catch(() => undefined)
-    )
+    Promise.allSettled(syncs).then(results => {
+      const hasSuccessfulSync = results.some(result => result.status === 'fulfilled')
+
+      if (results.some(result => result.status === 'rejected') && lastConnectorSyncKey === key) {
+        // A transient backend/Orgo failure must not permanently suppress the
+        // next roster-poll retry for these profiles.
+        lastConnectorSyncKey = ''
+      }
+
+      if (!hasSuccessfulSync) {
+        return
+      }
+
+      const sessionId = host.state.activeSessionId?.get?.() || null
+
+      return host
+        .request('reload.mcp', {
+          confirm: true,
+          ...(sessionId ? { session_id: sessionId } : {})
+        })
+        .catch(() => undefined)
+    })
   }
 }
 
@@ -172,6 +192,7 @@ const $selectedBot = atom('default')
 /** Per-bot appearance + display meta, persisted via ctx.storage:
  *  { [botName]: { shape, color, title } } */
 const $botMeta = atom({})
+let botMetaRevision = 0
 
 /** Persistent Grok-style group conversations. A group owns one normal Hermes
  * session under its first profile; the hidden routing envelope fans a turn to
@@ -188,14 +209,25 @@ let pendingGroupId = null
 const $pinnedBots = atom([])
 const BOT_DRAG_TYPE = 'application/x-hermes-bot-profile'
 let draggedBotName = null
+let pinnedBotsRevision = 0
 
 function savePinnedBots(next) {
+  pinnedBotsRevision += 1
   $pinnedBots.set(next)
 
   try {
     Promise.resolve(pluginCtx?.storage?.set?.(PINNED_STORAGE_KEY, next)).catch(() => undefined)
   } catch {
     /* storage unavailable — pins hold for this window */
+  }
+}
+
+function pinBotFirst(name) {
+  const current = $pinnedBots.get()
+  const next = [name, ...current.filter(entry => entry !== name)]
+
+  if (next.length !== current.length || next.some((entry, index) => entry !== current[index])) {
+    savePinnedBots(next)
   }
 }
 
@@ -286,6 +318,8 @@ function saveBotMeta(name, patch) {
     ...$botMeta.get(),
     [name]: { ...($botMeta.get()[name] || {}), ...patch }
   }
+
+  botMetaRevision += 1
   $botMeta.set(next)
 
   // Local plugin storage: instant, and the fallback for older gateways.
@@ -387,6 +421,16 @@ function mergeServerMeta(roster) {
       // Local-only fields survive the server overlay.
       if (mine.image) {
         merged.image = mine.image
+      }
+
+      // Local session handoffs reach the renderer before profiles.configure
+      // necessarily reaches profiles.list. Keep the foreground pin while that
+      // server copy catches up, including /new and compression rotations.
+      if (
+        mine.chat &&
+        (pendingExplicitNewSession?.name === bot.name || routedStoredSessionId() === mine.chat)
+      ) {
+        merged.chat = mine.chat
       }
 
       if (JSON.stringify(next[bot.name] || null) !== JSON.stringify(merged)) {
@@ -2034,7 +2078,10 @@ function queueSessionNavigation(storedId, profile, intent) {
       }
 
       try {
-        await host.openSession(storedId, { profile })
+        await host.openSession(storedId, {
+          profile,
+          isCurrent: () => isCurrentNavigationIntent(intent)
+        })
       } catch {
         return false
       }
@@ -2153,17 +2200,109 @@ function resolveGroupSessionBinding({
   return { action: 'ignore' }
 }
 
+/** Bind the foreground 1:1 Bot Chat runtime to its durable stored id.
+ *
+ *  Compression keeps the runtime alive while rotating stored_session_id.
+ *  Reconnect can also resume an old pin directly at its compression tip with a
+ *  new runtime. Both are continuation handoffs, not new chats. */
+function resolveCanonicalSessionBinding({
+  storedId,
+  runtimeId,
+  eventProfile,
+  eventTitle,
+  activeRuntime,
+  trackedRuntime,
+  pinnedId,
+  routedId,
+  foregroundBot,
+  activeGroupId,
+  navigationTarget,
+  isDraft,
+  isExplicitNew
+}) {
+  if (
+    !storedId ||
+    !runtimeId ||
+    !eventProfile ||
+    activeRuntime !== runtimeId ||
+    activeGroupId ||
+    isDraft ||
+    isExplicitNew ||
+    String(navigationTarget || '').startsWith('group:') ||
+    foregroundBot !== eventProfile
+  ) {
+    return { action: 'ignore' }
+  }
+
+  if (storedId === pinnedId) {
+    return { action: 'track', profile: eventProfile, sessionId: storedId }
+  }
+
+  const isCanonicalContinuation =
+    eventTitle === CANONICAL_CHAT_TITLE &&
+    Boolean(pinnedId) &&
+    (trackedRuntime === runtimeId || routedId === storedId)
+
+  if (isCanonicalContinuation) {
+    return { action: 'advance', profile: eventProfile, sessionId: storedId }
+  }
+
+  return { action: 'ignore' }
+}
+
 /** Prefer the pinned Bot Chat; never the most-recent session, which is how
- *  extra tabs used to steal the open transcript. */
+ *  extra tabs used to steal the open transcript. When the pin was demoted to
+ *  "Previous Bot Chat" by /new, follow the replacement canonical title. */
 function pickCanonicalSessionId(rows, pinnedId) {
   const list = Array.isArray(rows) ? rows : []
+  const pinned = pinnedId ? list.find(session => session.id === pinnedId) : null
+  const pinnedTitle = String(pinned?.title || '')
 
-  if (pinnedId && list.some(session => session.id === pinnedId)) {
+  if (pinned && pinnedTitle !== 'Previous Bot Chat' && pinnedTitle !== 'Previous group chat') {
     return pinnedId
   }
 
-  const titled = list.find(session => String(session.title || '') === 'Bot Chat')
-  return titled?.id || null
+  const titled = list.filter(session => String(session.title || '') === 'Bot Chat')
+
+  if (titled.length > 0) {
+    titled.sort((left, right) => {
+      const leftAt = Number(left.updated_at || left.last_active || 0)
+      const rightAt = Number(right.updated_at || right.last_active || 0)
+
+      return rightAt - leftAt
+    })
+
+    return titled[0]?.id || null
+  }
+
+  return pinned?.id || null
+}
+
+function sessionCreateParamsForBot(name, fallbackBot = null) {
+  const bot = botFromRoster(name)
+  const params = {
+    profile: name,
+    title: CANONICAL_CHAT_TITLE
+  }
+  const model = String(bot.model || fallbackBot?.model || '').trim()
+  const provider = String(bot.provider || fallbackBot?.provider || '').trim()
+
+  if (model && provider) {
+    params.model = model
+    params.provider = provider
+  }
+
+  return params
+}
+
+function seedBotComposerModel(name, fallbackBot = null) {
+  const bot = botFromRoster(name)
+  const model = String(bot.model || fallbackBot?.model || '').trim()
+  const provider = String(bot.provider || fallbackBot?.provider || '').trim()
+
+  if (model && provider && typeof host.seedComposerSelection === 'function') {
+    host.seedComposerSelection({ model, provider })
+  }
 }
 
 function snapToCanonicalIfStray() {
@@ -2211,6 +2350,25 @@ function snapToCanonicalIfStray() {
   }
 
   const target = `bot:${name}`
+
+  // Core follows a compression continuation by changing only the routed
+  // stored id; the runtime remains the same. Advance the durable bot pin
+  // instead of fighting core and reopening the archived pre-compression id.
+  const activeRuntime = host.state.activeSessionId?.get?.()
+  const activeProfile = String(host.state.profile.get() || '').trim()
+
+  if (
+    pin &&
+    stored &&
+    stored !== pin &&
+    activeRuntime &&
+    activeProfile === name &&
+    liveBotRuntimes.get(name) === activeRuntime
+  ) {
+    saveBotMeta(name, { chat: stored })
+    return
+  }
+
   const intent =
     navigationIntentTarget === target
       ? { epoch: navigationIntentEpoch, target }
@@ -2263,6 +2421,11 @@ function onBotModeNewSessionRequested(event) {
   }
   claimNavigationIntent(`new:${group?.id || name}`)
   lastMessengerBot = name
+  seedBotComposerModel(name)
+
+  if (typeof host.newChat === 'function') {
+    host.newChat(name)
+  }
 }
 
 function attachBotModeKeyGate() {
@@ -2304,10 +2467,7 @@ function createCanonicalChat(name, options = {}) {
   }
 
   const run = (async () => {
-    const res = await host.request('session.create', {
-      profile: name,
-      title: CANONICAL_CHAT_TITLE
-    })
+    const res = await host.request('session.create', sessionCreateParamsForBot(name, options.bot))
     const sid = res?.stored_session_id
     const runtime = res?.session_id
 
@@ -2504,6 +2664,7 @@ function uniqueProfileName(wanted, roster) {
 async function createQuickBot(wantedTitle, roster, launchProvider, launchModel) {
   const title = String(wantedTitle || '').trim()
   const name = uniqueProfileName(title || 'new-bot', roster)
+  const modelAssignment = resolveCreateAgentModel('', '', launchProvider, launchModel)
 
   await host.request('profiles.create', {
     name,
@@ -2511,7 +2672,7 @@ async function createQuickBot(wantedTitle, roster, launchProvider, launchModel) 
     clone_from: null,
     no_skills: false,
     soul: composeSoul({ name, title, description: '', roster, customSoul: '' }),
-    ...resolveCreateAgentModel('', '', launchProvider, launchModel)
+    ...modelAssignment
   })
   clearDeletedBotTombstone(name)
 
@@ -2527,13 +2688,16 @@ async function createQuickBot(wantedTitle, roster, launchProvider, launchModel) 
   // made in the detailed editor, but don't navigate away from the recipient
   // picker while the user is assembling a group.
   try {
-    await createCanonicalChat(name, { open: false })
+    await createCanonicalChat(name, {
+      bot: { name, title, ...modelAssignment },
+      open: false
+    })
   } catch {
     // The profile still exists; its first direct open will recover the chat.
   }
 
   syncConnectorsForRoster([...(roster || []), { name }], { force: true })
-  return { name, description: '', title }
+  return { name, description: '', title, ...modelAssignment }
 }
 
 async function openBotChat(bot, { intent: suppliedIntent = null, preserveDraft = false, quiet = false } = {}) {
@@ -2549,9 +2713,13 @@ async function openBotChat(bot, { intent: suppliedIntent = null, preserveDraft =
 
   if (!quiet) {
     haptic('tap')
-    lastMessengerBot = bot.name
-    pendingExplicitNewSession = null
   }
+
+  // Quiet navigation still changes the foreground bot (recipient selection,
+  // canonical recovery, first-run landing). Keep the navigation anchor current
+  // or a later hash/profile heartbeat can snap back to the previous bot.
+  lastMessengerBot = bot.name
+  seedBotComposerModel(bot.name, bot)
 
   forgetGroupRuntimes($activeGroupId.get())
   $activeGroupId.set(null)
@@ -2596,7 +2764,7 @@ async function openBotChat(bot, { intent: suppliedIntent = null, preserveDraft =
 
   if (!id) {
     try {
-      id = await createCanonicalChat(bot.name, { open: false })
+      id = await createCanonicalChat(bot.name, { bot, open: false })
 
       if (!id || !isCurrentNavigationIntent(intent)) {
         return
@@ -2609,9 +2777,54 @@ async function openBotChat(bot, { intent: suppliedIntent = null, preserveDraft =
   await queueSessionNavigation(id, bot.name, intent)
 }
 
+function onFirstBotProfile(event) {
+  const detail = event?.detail && typeof event.detail === 'object' ? event.detail : {}
+  const name = String(detail.name || '').trim()
+
+  if (!NAME_RE.test(name)) {
+    return
+  }
+
+  pinBotFirst(name)
+  queryClient.invalidateQueries({ queryKey: ROSTER_KEY })
+
+  if (!detail.open) {
+    return
+  }
+
+  // Claim before the profile refresh. If the user clicks a different bot while
+  // that request is in flight, their newer intent wins and this first-run
+  // landing is discarded instead of auto-switching them back.
+  const intent = claimNavigationIntent(`bot:${name}`)
+
+  void (async () => {
+    let bot = {
+      name,
+      title: name,
+      model: String(detail.model || '').trim(),
+      provider: String(detail.provider || '').trim()
+    }
+
+    try {
+      const response = await host.request('profiles.list', {})
+      const current = (response?.profiles || []).find(profile => profile.name === name)
+
+      if (current) {
+        bot = { ...bot, ...current }
+      }
+    } catch {
+      // The freshly-created profile may not be visible to a reconnecting
+      // gateway yet. Its setup payload still carries the exact model pin.
+    }
+
+    if (!pluginDisposed) {
+      await openBotChat(bot, { intent })
+    }
+  })()
+}
+
 function beginNewConversation() {
   haptic('tap')
-  pendingExplicitNewSession = null
   const originGroupId = $activeGroupId.get()
   const originBotName = $selectedBot.get()
   const draftId = `group-${Date.now().toString(36)}`
@@ -4663,7 +4876,7 @@ function ProviderSwitch({ variant = 'pill' } = {}) {
               // --ui-panel-background carries alpha in this theme; without a
               // blur the roster reads straight through the menu and the two
               // layers merge into noise.
-              'border border-(--ui-stroke-secondary) bg-(--ui-panel-background) backdrop-blur-xl shadow-2xl shadow-black/50'
+              'border border-(--ui-stroke-secondary) bg-(--ui-panel-background) backdrop-blur-xl shadow-nous'
             ),
             children: [
               // provider rail
@@ -5128,7 +5341,7 @@ function RecipientHeader() {
             // Focus stays in the To: input; the panel is browse-only chrome.
             onOpenAutoFocus: event => event.preventDefault(),
             className:
-              'z-[100] w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-panel-background) p-1 shadow-2xl shadow-black/50 backdrop-blur-xl',
+              'z-[100] w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-(--ui-stroke-secondary) bg-(--ui-panel-background) p-1 shadow-nous backdrop-blur-xl',
                   role: 'listbox',
                   'aria-label': 'Recipients',
                   children: jsxs('div', {
@@ -5930,9 +6143,14 @@ export default {
     // absent depending on shell version — normalize through Promise.resolve
     // inside a try so a storage quirk can NEVER fail the plugin load.
     try {
+      const hydrationRevision = botMetaRevision
+
       Promise.resolve(ctx.storage?.get?.('bot-meta'))
         .then(value => {
-          if (value && typeof value === 'object') {
+          // Session discovery/creation can save a canonical chat while this
+          // asynchronous read is pending. The older snapshot must not erase
+          // that id and make the next click create or adopt a different chat.
+          if (value && typeof value === 'object' && botMetaRevision === hydrationRevision) {
             $botMeta.set(value)
           }
         })
@@ -5942,9 +6160,13 @@ export default {
     }
 
     try {
+      const hydrationRevision = pinnedBotsRevision
+
       Promise.resolve(ctx.storage?.get?.(PINNED_STORAGE_KEY))
         .then(value => {
-          if (Array.isArray(value)) {
+          // A first-bot pin or user drag may land while async storage is still
+          // loading. Never let that older snapshot overwrite the newer intent.
+          if (Array.isArray(value) && pinnedBotsRevision === hydrationRevision) {
             $pinnedBots.set(value.filter(entry => typeof entry === 'string'))
           }
         })
@@ -6017,9 +6239,11 @@ export default {
 
       window.addEventListener('hashchange', onHashChange)
       window.addEventListener('hermes:new-session-shortcut', onNewSessionShortcut)
+      window.addEventListener(FIRST_BOT_PROFILE_EVENT, onFirstBotProfile)
       ctx.onDispose?.(() => {
         window.removeEventListener('hashchange', onHashChange)
         window.removeEventListener('hermes:new-session-shortcut', onNewSessionShortcut)
+        window.removeEventListener(FIRST_BOT_PROFILE_EVENT, onFirstBotProfile)
       })
     }
 
@@ -6074,12 +6298,13 @@ export default {
 
       const activeRuntime = host.state.activeSessionId?.get?.()
       const explicitNew = pendingExplicitNewSession
-      const eventProfile = String(event.profile || '').trim() || explicitNew?.name
+      const eventProfile =
+        String(event.profile || event?.payload?.profile_name || '').trim() || explicitNew?.name
 
       if (
         explicitNew &&
         eventProfile === explicitNew.name &&
-        (!activeRuntime || activeRuntime === runtimeId)
+        storedId !== explicitNew.previousChat
       ) {
         if (explicitNew.groupId) {
           patchBotGroup(explicitNew.groupId, {
@@ -6161,6 +6386,35 @@ export default {
         // A normal session selected outside Bot Mode must not retain the last
         // group's recipient header. Only the foreground session may own it.
         $activeGroupId.set(null)
+      }
+
+      if (binding.action !== 'bind' && binding.action !== 'keep') {
+        const foregroundBot = String(
+          lastMessengerBot || $selectedBot.get() || host.state.profile.get() || ''
+        ).trim()
+        const canonical = resolveCanonicalSessionBinding({
+          storedId,
+          runtimeId,
+          eventProfile,
+          eventTitle: String(event?.payload?.title || ''),
+          activeRuntime,
+          trackedRuntime: liveBotRuntimes.get(eventProfile),
+          pinnedId: $botMeta.get()[eventProfile]?.chat,
+          routedId: routedStoredSessionId(),
+          foregroundBot,
+          activeGroupId: $activeGroupId.get(),
+          navigationTarget: navigationIntentTarget,
+          isDraft: Boolean($newConversation.get()),
+          isExplicitNew: Boolean(explicitNew)
+        })
+
+        if (canonical.action === 'track' || canonical.action === 'advance') {
+          liveBotRuntimes.set(canonical.profile, runtimeId)
+        }
+
+        if (canonical.action === 'advance') {
+          saveBotMeta(canonical.profile, { chat: canonical.sessionId })
+        }
       }
     })
     ctx.onDispose?.(stopSessionInfoListener)

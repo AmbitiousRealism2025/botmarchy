@@ -10,7 +10,7 @@ body:
 
         **Before submitting**, please:
         - [ ] Search [existing issues](https://github.com/nickvasilescu/hermes-bots/issues) to avoid duplicates
-        - [ ] Pull the latest Hermes Bots source and rerun `./scripts/setup-hermes-bots.sh --verify`
+        - [ ] Pull the latest Korgo Bot source and rerun `./scripts/setup-hermes-bots.sh --verify`
         - [ ] Remove credentials and private data from logs, screenshots, and diagnostics
 
   - type: textarea
@@ -59,7 +59,7 @@ body:
       description: Which part of Hermes is affected?
       multiple: true
       options:
-        - Hermes Bots desktop
+        - Korgo Bot desktop
         - Orgo / Tailscale cloud connection
         - Connected apps / Composio
         - CLI (interactive chat)

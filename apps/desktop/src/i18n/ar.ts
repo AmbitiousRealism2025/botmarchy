@@ -1789,6 +1789,8 @@ export const ar = defineLocale({
     agents: 'الوكلاء',
     background: count => `${count} في الخلفية`,
     subagents: count => `${count} ${count === 1 ? 'وكيل فرعي' : 'وكيل فرعي'}`,
+    tasksLabel: 'المهام',
+    tasksProgress: (done, total) => `${done} من ${total}`,
     todos: (done, total) => `المهام ${done}/${total}`,
     running: 'قيد التشغيل',
     stop: 'إيقاف',

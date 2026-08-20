@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router'
 import { blurComposerInput } from '@/app/chat/composer/focus'
 import { AGENTS_ROUTE } from '@/app/routes'
 import { BillingBanner } from '@/components/billing-banner'
-import { composerDockCard } from '@/components/chat/composer-dock'
-import { StatusSection } from '@/components/chat/status-section'
+import { composerStatusCard } from '@/components/chat/composer-dock'
+import { StatusSection, type TaskSegmentState } from '@/components/chat/status-section'
 import { Button } from '@/components/ui/button'
 import { Codicon } from '@/components/ui/codicon'
 import { Tip, TipKeybindLabel } from '@/components/ui/tooltip'
@@ -49,6 +49,23 @@ const GROUP_ICON: Record<StatusGroup['type'], string> = {
   background: 'server-process'
 }
 
+const todoTaskSegments = (items: ComposerStatusItem[]): TaskSegmentState[] =>
+  items.map(item => {
+    if (item.todoStatus === 'completed') {
+      return 'completed'
+    }
+
+    if (item.todoStatus === 'cancelled') {
+      return 'cancelled'
+    }
+
+    if (item.todoStatus === 'in_progress') {
+      return 'active'
+    }
+
+    return 'pending'
+  })
+
 const groupLabel = (group: StatusGroup, s: Translations['statusStack']) => {
   if (group.type === 'goal') {
     const status = group.items[0]?.goalStatus
@@ -63,7 +80,7 @@ const groupLabel = (group: StatusGroup, s: Translations['statusStack']) => {
   }
 
   if (group.type === 'todo') {
-    return s.todos(group.items.filter(i => i.todoStatus === 'completed').length, group.items.length)
+    return s.tasksLabel
   }
 
   return group.type === 'subagent' ? s.subagents(group.items.length) : s.background(group.items.length)
@@ -151,6 +168,8 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
   }
 
   for (const group of groups) {
+    const todoDone = group.type === 'todo' ? group.items.filter(i => i.todoStatus === 'completed').length : 0
+
     sections.push({
       key: group.type,
       node: (
@@ -171,8 +190,17 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
             ) : undefined
           }
           defaultCollapsed={group.type !== 'todo' && group.type !== 'goal'}
-          icon={<Codicon className="text-muted-foreground/70" name={GROUP_ICON[group.type]} size="0.8rem" />}
+          icon={
+            group.type === 'todo' ? undefined : (
+              <Codicon className="text-muted-foreground/70" name={GROUP_ICON[group.type]} size="0.8rem" />
+            )
+          }
           label={groupLabel(group, t.statusStack)}
+          taskProgressLabel={
+            group.type === 'todo' ? t.statusStack.tasksProgress(todoDone, group.items.length) : undefined
+          }
+          taskSegments={group.type === 'todo' ? todoTaskSegments(group.items) : undefined}
+          variant={group.type === 'todo' ? 'task' : 'default'}
         >
           {group.items.map(item => (
             <StatusItemRow
@@ -223,28 +251,25 @@ export function ComposerStatusStack({ queue, sessionId }: ComposerStatusStackPro
 
   return (
     <div
-      // In flow in the dock column, directly above the composer. The dock is
-      // bottom-anchored, so this grows upward over the thread without needing
-      // to be positioned — and it shares the dock's left edge for free.
+      // In flow in the dock column, above the composer. The bottom margin is a
+      // real layout gap: status content can never paint into the input surface.
       className="flex max-h-[40vh] min-h-0 flex-col overflow-y-auto"
+      data-layout="detached"
+      data-slot="composer-status-stack"
       onPointerDownCapture={() => blurComposerInput()}
     >
-      {/* The card paints the shared --composer-fill (rest / scrolled / focused
-          all match the composer surface by construction); on scroll we only
-          ghost the CONTENT — element opacity on the card would kill the blur.
-          Rounded top, square bottom; the bottom border is TRANSPARENT — the
-          composer surface's visible top border (which sits at a higher z) is the
-          single shared seam, so the two read as one fused capsule. */}
+      {/* A standalone card with four real corners and a complete border. It is
+          intentionally detached from the composer instead of sharing a seam:
+          the old fused treatment read as an overlapping input. */}
       {sections.length > 0 && (
         <div
           className={cn(
-            composerDockCard('top'),
-            // Inset (mx-2) so the stack reads slightly narrower than the composer
-            // surface below it — the original look.
-            'mx-2 overflow-hidden rounded-b-none border-b border-b-transparent pt-0.5',
+            composerStatusCard,
+            'mx-2 mb-2 overflow-hidden p-1',
             'transition-opacity duration-200 ease-out',
             scrolledUp ? 'opacity-30 group-hover/composer:opacity-100' : 'opacity-100'
           )}
+          data-slot="composer-status-card"
         >
           {sections.map(section => (
             <div key={section.key}>{section.node}</div>

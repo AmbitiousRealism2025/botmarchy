@@ -1,10 +1,10 @@
-# Contributing to Hermes Bots and Hermes Agent
+# Contributing to Korgo Bot and Hermes Agent
 
 Thank you for contributing to Hermes Agent! This guide covers everything you need: setting up your dev environment, understanding the architecture, deciding what to build, and getting your PR merged.
 
-## Hermes Bots contributors
+## Korgo Bot contributors
 
-This repository's primary product is the Hermes Bots desktop experience built on the upstream Hermes Agent codebase.
+This repository's primary product is the Korgo Bot desktop experience built on the upstream Hermes Agent codebase.
 
 For a Bot-focused development checkout:
 

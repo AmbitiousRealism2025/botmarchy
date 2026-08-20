@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   allowsGenericHermesUpdates,
+  BOT_APP_ICON_ASSET,
+  BOT_APP_NAME,
   BOT_PROVIDER_IDS,
   BOT_UPDATE_POLICY,
   filterBotProviders,
@@ -10,6 +12,11 @@ import {
 } from './product'
 
 describe('bot product providers', () => {
+  it('uses the Korgo Bot display identity', () => {
+    expect(BOT_APP_NAME).toBe('Korgo Bot')
+    expect(BOT_APP_ICON_ASSET).toBe('korgo-bot-icon.png')
+  })
+
   it('recognizes Codex and Grok only', () => {
     expect(isBotProviderId('openai-codex')).toBe(true)
     expect(isBotProviderId('xai-oauth')).toBe(true)

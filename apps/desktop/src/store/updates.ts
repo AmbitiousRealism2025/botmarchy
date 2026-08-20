@@ -422,7 +422,7 @@ export async function applyUpdates(opts: DesktopUpdateApplyOptions = {}): Promis
     return {
       ok: false,
       error: 'unavailable',
-      message: 'Pull a reviewed Hermes Bots source release and rerun the setup script.'
+      message: 'Pull a reviewed Korgo Bot source release and rerun the setup script.'
     }
   }
 
@@ -724,7 +724,7 @@ export function applyBackendUpdate(): Promise<DesktopUpdateApplyResult> {
     return Promise.resolve({
       ok: false,
       error: 'unavailable',
-      message: 'Backend updates are managed by Hermes Bots releases.'
+      message: 'Backend updates are managed by Korgo Bot releases.'
     })
   }
 

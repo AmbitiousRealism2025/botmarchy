@@ -1,4 +1,4 @@
-# Hermes Bots and Hermes Agent Security Policy
+# Korgo Bot and Hermes Agent Security Policy
 
 This document describes Hermes Agent's trust model, names the one
 security boundary the project treats as load-bearing, and defines the
@@ -6,11 +6,11 @@ scope for vulnerability reports.
 
 ## 1. Reporting a Vulnerability
 
-Report Hermes Bots vulnerabilities privately through [GitHub Security Advisories](https://github.com/nickvasilescu/hermes-bots/security/advisories/new). Do not open public issues for security vulnerabilities. This project does not operate a bug bounty program.
+Report Korgo Bot vulnerabilities privately through [GitHub Security Advisories](https://github.com/nickvasilescu/hermes-bots/security/advisories/new). Do not open public issues for security vulnerabilities. This project does not operate a bug bounty program.
 
 If a vulnerability affects unmodified upstream Hermes Agent code, also follow the [Nous Research security policy](https://github.com/NousResearch/hermes-agent/security/policy).
 
-Security fixes target the latest `main` commit and latest tagged Hermes Bots source release. Older source revisions are not guaranteed to receive backports.
+Security fixes target the latest `main` commit and latest tagged Korgo Bot source release. Older source revisions are not guaranteed to receive backports.
 
 A useful report includes:
 
@@ -30,7 +30,7 @@ boundary will be closed as out-of-scope under §3 — but see §3.2:
 they are still welcome as regular issues or pull requests, just not
 through the private security channel.
 
-### Hermes Bots deployment notes
+### Korgo Bot deployment notes
 
 - The shared Orgo computer is single-tenant infrastructure under the user's account. Bots sharing it are not security-isolated from one another.
 - Tailscale is the network boundary around the remote Hermes service. Do not expose the Hermes gateway directly to the public internet.
@@ -340,7 +340,7 @@ that:
 
 - **Coordinated disclosure window:** 90 days from report, or until a
   fix is released, whichever comes first.
-- **Channel:** the Hermes Bots GHSA thread. Reports that affect unmodified
+- **Channel:** the Korgo Bot GHSA thread. Reports that affect unmodified
   upstream code may also use the Nous Research channel linked in §1.
 - **Credit:** reporters are credited in release notes unless
   anonymity is requested.

@@ -2,9 +2,9 @@
 
 Instructions for AI coding assistants and developers working on the hermes-agent codebase.
 
-## When the user asks to run Hermes Bots
+## When the user asks to run Korgo Bot
 
-Hermes Bots is the source-first desktop product in this repository. For setup or launch requests:
+Korgo Bot is the source-first desktop product in this repository. For setup or launch requests:
 
 1. Do not edit product source just to install it.
 2. Do not delete, reset, or overwrite `~/.hermes`; it may contain profiles, credentials, and conversation history.
@@ -12,7 +12,7 @@ Hermes Bots is the source-first desktop product in this repository. For setup or
 4. Run `./scripts/setup-hermes-bots.sh --verify` from the repository root.
 5. Launch with `npm --workspace apps/desktop run dev:bot`.
 6. Preserve and report complete startup errors with credentials redacted.
-7. Do not run generic `hermes update`; Hermes Bots source revisions and the compatibility-pinned remote template move together.
+7. Do not run generic `hermes update`; Korgo Bot source revisions and the compatibility-pinned remote template move together.
 
 Follow [`docs/agent-assisted-setup.md`](docs/agent-assisted-setup.md) for the user-facing procedure.
 

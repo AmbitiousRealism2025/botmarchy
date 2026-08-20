@@ -1,13 +1,13 @@
 # Agent-assisted source setup
 
-Hermes Bots can be used directly from this repository without a packaged or notarized macOS application.
+Korgo Bot can be used directly from this repository without a packaged or notarized macOS application.
 
 ## Give this prompt to your coding agent
 
 Replace `<workspace>` with the directory where you want the repository:
 
 ```text
-Set up Hermes Bots from source on this Mac.
+Set up Korgo Bot from source on this Mac.
 
 1. Clone https://github.com/nickvasilescu/hermes-bots.git into <workspace>/hermes-bots.
 2. Read README.md, AGENTS.md, and apps/desktop/AGENTS.md before changing or running anything.
@@ -15,7 +15,7 @@ Set up Hermes Bots from source on this Mac.
 4. Install missing prerequisites only after telling me what is missing. The project requires Git, Node.js 22.22+, npm, uv, and Python 3.11.
 5. From the repository root run ./scripts/setup-hermes-bots.sh --verify.
 6. Start the app with npm --workspace apps/desktop run dev:bot.
-7. Wait for the Hermes Bots window and report any setup error exactly. Do not run generic `hermes update`; this product pins its compatible runtime path.
+7. Wait for the Korgo Bot window and report any setup error exactly. Do not run generic `hermes update`; this product pins its compatible runtime path.
 ```
 
 ## Manual equivalent
@@ -55,7 +55,7 @@ git pull --ff-only
 npm --workspace apps/desktop run dev:bot
 ```
 
-Do not run the generic in-app Hermes updater for this product. Source users update by pulling a reviewed Hermes Bots commit and rerunning the setup script.
+Do not run the generic in-app Hermes updater for this product. Source users update by pulling a reviewed Korgo Bot commit and rerunning the setup script.
 
 ## Common setup failures
 

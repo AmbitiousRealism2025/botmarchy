@@ -1,6 +1,8 @@
 /** Build-time product SKU. Generic Hermes Desktop stays the default so
  *  existing packs keep working; Bot builds set `VITE_HERMES_DESKTOP_PRODUCT=bot`. */
 export const BOT_PROVIDER_IDS = ['openai-codex', 'xai-oauth'] as const
+export const BOT_APP_ICON_ASSET = 'korgo-bot-icon.png'
+export const BOT_APP_NAME = 'Korgo Bot'
 export const BOT_UPDATE_POLICY = 'source-release' as const
 
 export type BotProviderId = (typeof BOT_PROVIDER_IDS)[number]

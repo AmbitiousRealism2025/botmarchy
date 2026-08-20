@@ -9,7 +9,7 @@ VERIFY=false
 
 usage() {
   cat <<'EOF'
-Set up Hermes Bots from a source checkout.
+Set up Korgo Bot from a source checkout.
 
 Usage:
   ./scripts/setup-hermes-bots.sh [--run] [--verify]
@@ -46,7 +46,7 @@ while (($# > 0)); do
 done
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "Hermes Bots currently supports source use on macOS." >&2
+  echo "Korgo Bot currently supports source use on macOS." >&2
   exit 1
 fi
 
@@ -79,13 +79,13 @@ if [[ "$VERIFY" == true ]]; then
 fi
 
 if [[ "$RUN_APP" == true ]]; then
-  echo "Launching Hermes Bots..."
+  echo "Launching Korgo Bot..."
   exec npm --workspace apps/desktop run dev:bot
 fi
 
 cat <<'EOF'
 
-Hermes Bots is ready.
+Korgo Bot is ready.
 
 Launch it with:
   npm --workspace apps/desktop run dev:bot

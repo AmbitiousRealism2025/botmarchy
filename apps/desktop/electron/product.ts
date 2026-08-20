@@ -3,7 +3,9 @@ import path from 'node:path'
 export const HERMES_APP_NAME = 'Hermes'
 export const HERMES_APP_ID = 'com.nousresearch.hermes'
 
-export const BOT_APP_NAME = 'Hermes Bots'
+export const BOT_APP_NAME = 'Korgo Bot'
+// Keep the installed identity and data directory stable across the rebrand so
+// existing users retain their app permissions, credentials, and local state.
 export const BOT_APP_ID = 'com.nousresearch.hermes-bots'
 export const BOT_USER_DATA_DIRNAME = 'Hermes Bots'
 export const BOT_TEMPLATE_REF = 'system/hermes-agent@1.0.0'

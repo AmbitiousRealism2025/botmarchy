@@ -1974,6 +1974,8 @@ export const ja = defineLocale({
     goalPaused: '目標一時停止中',
     goalWaiting: '目標待機中',
     subagents: count => `サブエージェント ${count} 件`,
+    tasksLabel: 'タスク',
+    tasksProgress: (done, total) => `${done}/${total}`,
     todos: (done, total) => `タスク ${done}/${total}`,
     running: '実行中',
     stop: '停止',

@@ -147,7 +147,12 @@ describe('OrgoDesktopPane', () => {
     expect(rfbInstances).toHaveLength(1)
 
     fireEvent.click(screen.getByLabelText('Open computer fullscreen', { selector: 'button' }))
-    expect(screen.getByRole('button', { name: 'Exit fullscreen' })).toBeTruthy()
+    const exit = screen.getByRole('button', { name: 'Exit fullscreen' })
+    expect(exit).toBeTruthy()
+    // Light mode paints ghost buttons with dark theme tokens; the overlay
+    // chrome is always black, so these must force light-on-dark icons.
+    expect(exit.className).toMatch(/text-white/)
+    expect(screen.getByRole('button', { name: /Paste clipboard/i }).className).toMatch(/text-white/)
     expect(rfbInstances).toHaveLength(1)
 
     view.unmount()

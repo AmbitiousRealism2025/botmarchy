@@ -184,8 +184,32 @@ const chromeBackground = (background: string, isDark: boolean) =>
   mix(background, NEUTRAL_CHROME[isDark ? 'dark' : 'light'], isDark ? 0.26 : 0.08)
 
 // Orgo Black is an exact product surface contract rather than a seed that gets
-// remixed by the legacy glass theme. Keep this list centralized so switching
-// to another skin can remove every inline override before applying its palette.
+// remixed by the legacy glass theme. Keep these lists centralized so switching
+// skin/mode can remove every inline override before applying the next palette.
+const ORGO_DARK_PALETTE: Record<string, string> = {
+  '--orgo-app': '#070707',
+  '--orgo-panel': '#111111',
+  '--orgo-raised': '#2f2f2f',
+  '--orgo-raised-hover': '#3d3d3d',
+  '--orgo-card': '#262626',
+  '--orgo-inset': '#191919',
+  '--orgo-hairline': '#333333',
+  '--orgo-ink': '#fcfcfc',
+  '--orgo-ink-secondary': 'rgb(252 252 252 / 60%)'
+}
+
+const ORGO_LIGHT_PALETTE: Record<string, string> = {
+  '--orgo-app': '#f7f7f7',
+  '--orgo-panel': '#efefef',
+  '--orgo-raised': '#e1e1e1',
+  '--orgo-raised-hover': '#d6d6d6',
+  '--orgo-card': '#ffffff',
+  '--orgo-inset': '#eeeeee',
+  '--orgo-hairline': '#d6d6d6',
+  '--orgo-ink': '#171717',
+  '--orgo-ink-secondary': 'rgb(23 23 23 / 60%)'
+}
+
 const ORGO_DARK_SURFACE_OVERRIDES: Record<string, string> = {
   '--ui-bg-chrome': 'var(--orgo-app)',
   '--ui-bg-sidebar': 'var(--orgo-panel)',
@@ -218,6 +242,7 @@ const ORGO_DARK_SURFACE_OVERRIDES: Record<string, string> = {
   '--ui-editor-surface-background': 'var(--orgo-app)',
   '--ui-terminal-surface-background': 'var(--orgo-app)',
   '--ui-widget-surface-background': 'var(--orgo-inset)',
+  '--ui-panel-background': 'var(--orgo-inset)',
   '--ui-chat-bubble-background': 'var(--orgo-inset)',
   '--ui-chat-bubble-opaque-background': 'var(--orgo-inset)',
   '--ui-assistant-message-background': 'var(--orgo-card)',
@@ -251,6 +276,80 @@ const ORGO_DARK_SURFACE_OVERRIDES: Record<string, string> = {
   '--noise-opacity-mul': '0'
 }
 
+// Light Orgo keeps the same surface roles as dark, with ink/paper flipped so
+// Cmd+K, dialogs, plugin menus, and chat share one readable contract.
+const ORGO_LIGHT_SURFACE_OVERRIDES: Record<string, string> = {
+  '--ui-bg-chrome': 'var(--orgo-app)',
+  '--ui-bg-sidebar': 'var(--orgo-panel)',
+  '--ui-bg-editor': 'var(--orgo-app)',
+  '--ui-bg-elevated': 'var(--orgo-card)',
+  '--ui-bg-card': 'var(--orgo-card)',
+  '--ui-bg-input': 'var(--orgo-card)',
+  '--ui-bg-primary': 'var(--orgo-raised)',
+  '--ui-bg-secondary': 'var(--orgo-inset)',
+  '--ui-bg-tertiary': '#e8e8e8',
+  '--ui-bg-quaternary': 'var(--orgo-inset)',
+  '--ui-bg-quinary': '#f0f0f0',
+  '--ui-row-hover-background': '#e8e8e8',
+  '--ui-row-active-background': 'var(--orgo-raised)',
+  '--ui-control-hover-background': 'var(--orgo-raised)',
+  '--ui-control-active-background': 'var(--orgo-raised)',
+  '--ui-text-primary': 'var(--orgo-ink)',
+  '--ui-text-secondary': 'var(--orgo-ink-secondary)',
+  '--ui-text-tertiary': 'rgb(23 23 23 / 46%)',
+  '--ui-text-quaternary': 'rgb(23 23 23 / 30%)',
+  '--ui-stroke-primary': 'var(--orgo-hairline)',
+  '--ui-stroke-secondary': 'rgb(214 214 214 / 90%)',
+  '--ui-stroke-tertiary': 'rgb(214 214 214 / 70%)',
+  '--ui-stroke-quaternary': 'rgb(214 214 214 / 45%)',
+  '--ui-sash-hover-border': 'var(--orgo-raised-hover)',
+  '--ui-sash-hover-background': 'rgb(23 23 23 / 6%)',
+  '--ui-surface-background': 'var(--orgo-app)',
+  '--ui-sidebar-surface-background': 'var(--orgo-panel)',
+  '--ui-chat-surface-background': 'var(--orgo-app)',
+  '--ui-editor-surface-background': 'var(--orgo-app)',
+  '--ui-terminal-surface-background': 'var(--orgo-app)',
+  '--ui-widget-surface-background': 'var(--orgo-card)',
+  '--ui-panel-background': 'var(--orgo-card)',
+  '--ui-chat-bubble-background': 'var(--orgo-card)',
+  '--ui-chat-bubble-opaque-background': 'var(--orgo-card)',
+  '--ui-assistant-message-background': 'var(--orgo-card)',
+  '--ui-user-message-background': '#e3e3e3',
+  '--ui-user-message-hover-background': '#d8d8d8',
+  '--dt-background': 'var(--orgo-app)',
+  '--dt-foreground': 'var(--orgo-ink)',
+  '--dt-card': 'var(--orgo-panel)',
+  '--dt-card-foreground': 'var(--orgo-ink)',
+  '--dt-muted': 'var(--orgo-inset)',
+  '--dt-muted-foreground': 'var(--orgo-ink-secondary)',
+  '--dt-popover': 'var(--orgo-card)',
+  '--dt-popover-foreground': 'var(--orgo-ink)',
+  '--dt-primary': 'var(--orgo-ink)',
+  '--dt-primary-foreground': 'var(--orgo-app)',
+  '--dt-secondary': 'var(--orgo-inset)',
+  '--dt-secondary-foreground': 'var(--orgo-ink-secondary)',
+  '--dt-accent': 'var(--orgo-raised)',
+  '--dt-accent-foreground': 'var(--orgo-ink)',
+  '--dt-border': 'var(--orgo-hairline)',
+  '--dt-input': 'var(--orgo-hairline)',
+  '--dt-ring': '#666666',
+  '--dt-composer-ring': 'var(--orgo-hairline)',
+  '--dt-sidebar-bg': 'var(--orgo-panel)',
+  '--dt-sidebar-border': '#d8d8d8',
+  '--dt-user-bubble': '#e3e3e3',
+  '--dt-user-bubble-border': '#d0d0d0',
+  '--sidebar-edge-border': '#d8d8d8',
+  '--chrome-action-hover': 'var(--orgo-raised-hover)',
+  '--composer-fill': 'var(--orgo-card)',
+  '--noise-opacity-mul': '0'
+}
+
+const ORGO_SURFACE_OVERRIDE_KEYS = Array.from(
+  new Set([...Object.keys(ORGO_DARK_SURFACE_OVERRIDES), ...Object.keys(ORGO_LIGHT_SURFACE_OVERRIDES)])
+)
+
+const ORGO_PALETTE_KEYS = Object.keys(ORGO_DARK_PALETTE)
+
 const mixesFor = (isDark: boolean): Record<string, string> => ({
   '--theme-mix-chrome': isDark ? '74%' : '92%',
   '--theme-mix-sidebar': '100%',
@@ -271,9 +370,21 @@ function applyTheme(theme: DesktopTheme, mode: 'light' | 'dark') {
   const isDark = rendered === 'dark'
   const midground = c.midground ?? c.ring
   const skinName = theme.name.endsWith(`-${mode}`) ? theme.name.slice(0, -mode.length - 1) : theme.name
-  const usesOrgoDarkSurfaces = skinName === 'orgo' && isDark
+  const usesOrgoSurfaces = skinName === 'orgo'
 
-  for (const key of Object.keys(ORGO_DARK_SURFACE_OVERRIDES)) {
+  const orgoSurfaceOverrides = usesOrgoSurfaces
+    ? isDark
+      ? ORGO_DARK_SURFACE_OVERRIDES
+      : ORGO_LIGHT_SURFACE_OVERRIDES
+    : null
+
+  const orgoPalette = usesOrgoSurfaces ? (isDark ? ORGO_DARK_PALETTE : ORGO_LIGHT_PALETTE) : null
+
+  for (const key of ORGO_SURFACE_OVERRIDE_KEYS) {
+    root.style.removeProperty(key)
+  }
+
+  for (const key of ORGO_PALETTE_KEYS) {
     root.style.removeProperty(key)
   }
 
@@ -294,7 +405,10 @@ function applyTheme(theme: DesktopTheme, mode: 'light' | 'dark') {
     '--theme-sidebar-seed': c.sidebarBackground ?? c.background,
     '--theme-card-seed': c.card,
     '--theme-elevated-seed': c.popover,
-    '--theme-bubble-seed': c.userBubble ?? c.popover
+    '--theme-bubble-seed': c.userBubble ?? c.popover,
+    '--theme-neutral-chrome': NEUTRAL_CHROME[isDark ? 'dark' : 'light'],
+    '--theme-neutral-sidebar': isDark ? '#0a0a0b' : '#f3f3f3',
+    '--theme-neutral-card': isDark ? '#161618' : '#ffffff'
   }
 
   // shadcn/Tailwind tokens that aren't derived from the seed chain.
@@ -321,13 +435,19 @@ function applyTheme(theme: DesktopTheme, mode: 'light' | 'dark') {
     root.style.setProperty(k, v)
   }
 
-  if (usesOrgoDarkSurfaces) {
-    for (const [key, value] of Object.entries(ORGO_DARK_SURFACE_OVERRIDES)) {
+  if (orgoPalette) {
+    for (const [key, value] of Object.entries(orgoPalette)) {
       root.style.setProperty(key, value)
     }
   }
 
-  const chromeBg = usesOrgoDarkSurfaces ? c.background : chromeBackground(c.background, isDark)
+  if (orgoSurfaceOverrides) {
+    for (const [key, value] of Object.entries(orgoSurfaceOverrides)) {
+      root.style.setProperty(key, value)
+    }
+  }
+
+  const chromeBg = usesOrgoSurfaces ? c.background : chromeBackground(c.background, isDark)
 
   window.hermesDesktop?.setTitleBarTheme?.({
     background: chromeBg,

@@ -101,16 +101,34 @@ export const host = {
    *  navigation, not a scope choice; pass false to also scope the sidebar. */
   openSession: async (
     storedSessionId: string,
-    options: { intent?: OpenSessionIntent; keepAllProfilesScope?: boolean; profile?: null | string } = {}
+    options: {
+      intent?: OpenSessionIntent
+      isCurrent?: () => boolean
+      keepAllProfilesScope?: boolean
+      profile?: null | string
+    } = {}
   ): Promise<void> => {
     const profile = (options.profile ?? '').trim()
+    const isCurrent = () => options.isCurrent?.() !== false
+
+    if (!isCurrent()) {
+      return
+    }
 
     if (profile && profile !== $activeGatewayProfile.get()) {
-      await ensureGatewayProfile(profile)
+      await ensureGatewayProfile(profile, { isCurrent })
+
+      if (!isCurrent()) {
+        return
+      }
 
       if (options.keepAllProfilesScope !== false) {
         setShowAllProfiles(true)
       }
+    }
+
+    if (!isCurrent()) {
+      return
     }
 
     openSession(
@@ -134,6 +152,22 @@ export const host = {
   newChat: (profile?: null | string): void => {
     newSessionInProfile((profile ?? '').trim() || $activeGatewayProfile.get())
     window.location.hash = '#/'
+  },
+
+  /** Seed the sticky composer model/provider used by the next session.create.
+   *  Bot surfaces use this so a profile-scoped provider pick isn't overridden
+   *  by whatever model happened to be left in the global composer. */
+  seedComposerSelection: (selection: { model?: string; provider?: string }): void => {
+    const model = (selection.model ?? '').trim()
+    const provider = (selection.provider ?? '').trim()
+
+    if (model) {
+      $currentModel.set(model)
+    }
+
+    if (provider) {
+      $currentProvider.set(provider)
+    }
   },
 
   /** HEAR the gateway stream (message deltas, session lifecycle, tool

@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils'
 interface StatusRowProps {
   children: ReactNode
   className?: string
+  /** Optional data attribute for task row state semantics in tests. */
+  'data-task-state'?: string
   /** Leading glyph slot (spinner / status dot / selection circle). */
   leading?: ReactNode
   /** Makes the whole row activatable (adds `cursor-pointer` + keyboard a11y).
@@ -12,6 +14,8 @@ interface StatusRowProps {
    *  (e.g. ⌘/Ctrl-click). Trailing-slot buttons should `stopPropagation` so
    *  they don't also fire it. */
   onActivate?: (event: KeyboardEvent | MouseEvent) => void
+  /** Skip hover chrome on read-only rows (e.g. non-interactive task checklist items). */
+  suppressHover?: boolean
   /** Right-aligned actions. Revealed on row hover/focus unless `trailingVisible`. */
   trailing?: ReactNode
   trailingVisible?: boolean
@@ -31,10 +35,12 @@ interface StatusRowProps {
 export function StatusRow({
   children,
   className,
+  'data-task-state': dataTaskState,
   leading,
   onActivate,
   onContextMenu,
   ref,
+  suppressHover = false,
   trailing,
   trailingVisible = false
 }: StatusRowProps) {
@@ -43,9 +49,10 @@ export function StatusRow({
       className={cn(
         'group/status-row flex min-h-6 items-center gap-2 rounded-md px-1.5 py-1',
         // row-hover bundles cursor:pointer — only when the row actually activates.
-        onActivate ? 'row-hover' : 'hover:bg-(--ui-row-hover-background)',
+        onActivate ? 'row-hover' : suppressHover ? undefined : 'hover:bg-(--ui-row-hover-background)',
         className
       )}
+      data-task-state={dataTaskState}
       onClick={onActivate}
       onContextMenu={onContextMenu}
       onKeyDown={

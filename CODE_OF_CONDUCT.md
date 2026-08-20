@@ -1,6 +1,6 @@
 # Code of Conduct
 
-Hermes Bots is committed to a welcoming, harassment-free community.
+Korgo Bot is committed to a welcoming, harassment-free community.
 
 Contributors, maintainers, and community members must:
 
@@ -10,7 +10,7 @@ Contributors, maintainers, and community members must:
 - avoid harassment, threats, sexualized conduct, discriminatory language, and publishing private information;
 - respect maintainers' decisions about project scope and community safety.
 
-This policy applies in the repository, issue tracker, pull requests, and other spaces where someone represents Hermes Bots.
+This policy applies in the repository, issue tracker, pull requests, and other spaces where someone represents Korgo Bot.
 
 ## Reporting
 

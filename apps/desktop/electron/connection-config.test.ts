@@ -290,6 +290,17 @@ test('pathWithGlobalRemoteProfile appends profile in global remote mode', () => 
   )
 })
 
+test('pathWithGlobalRemoteProfile scopes MCP config writes to the remote bot profile', () => {
+  assert.equal(
+    pathWithGlobalRemoteProfile('/api/config', 'assistant', {
+      globalRemote: true,
+      primaryProfile: 'default',
+      profileRemoteOverride: false
+    }),
+    '/api/config?profile=assistant'
+  )
+})
+
 test('pathWithGlobalRemoteProfile skips the primary profile, which the remote already serves', () => {
   assert.equal(
     pathWithGlobalRemoteProfile('/api/model/info', 'coder', {

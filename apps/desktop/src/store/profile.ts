@@ -259,7 +259,10 @@ async function syncConnectionToActiveProfile(profile: string): Promise<void> {
 // their sockets — so their sessions keep streaming concurrently. A null/empty
 // target means "no explicit profile" → keep the current gateway (a plain new
 // chat stays put; single-profile users never leave the primary).
-export async function ensureGatewayProfile(profile: string | null | undefined): Promise<void> {
+export async function ensureGatewayProfile(
+  profile: string | null | undefined,
+  options: { isCurrent?: () => boolean } = {}
+): Promise<void> {
   if (profile == null || !String(profile).trim()) {
     // "No explicit profile" = use the current gateway. But if an explicit swap
     // (e.g. the user just picked a profile in the switcher) is still in flight,
@@ -293,6 +296,14 @@ export async function ensureGatewayProfile(profile: string | null | undefined): 
     // ensureGatewayForProfile opens (or reuses) the target's socket and points
     // the active gateway at it — without closing the profile you came from.
     await ensureGatewayForProfile(target)
+
+    // A plugin/session navigation can be superseded while a cold backend is
+    // starting. Do not publish the obsolete profile as active: that transient
+    // commit paints the wrong bot selected before the newer navigation runs.
+    if (options.isCurrent && !options.isCurrent()) {
+      return
+    }
+
     $activeGatewayProfile.set(target)
     // The active backend just changed; resync $connection so remote-aware
     // paths (image.attach_bytes vs image.attach, /api/fs/*, /api/media) follow.

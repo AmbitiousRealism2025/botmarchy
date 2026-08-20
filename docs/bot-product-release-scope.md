@@ -1,8 +1,8 @@
-# Hermes Bots release scope
+# Korgo Bot release scope
 
 ## Current source release
 
-The first Hermes Bots source release intentionally ships the proven single-computer product:
+The first Korgo Bot source release intentionally ships the proven single-computer product:
 
 - one shared Orgo computer created from `system/hermes-agent@1.0.0`;
 - Tailscale SSH between the Mac app and the remote Hermes runtime;
@@ -15,11 +15,11 @@ The product must preserve this behavior while release hardening is in progress. 
 
 ## Update policy
 
-Hermes Bots uses a compatibility-pinned source channel:
+Korgo Bot uses a compatibility-pinned source channel:
 
 - the Orgo template reference is fixed in product code;
 - generic Hermes client and remote-backend update prompts are disabled in the Bot SKU;
-- updates are delivered as reviewed Hermes Bots source revisions with a compatible backend/template;
+- updates are delivered as reviewed Korgo Bot source revisions with a compatible backend/template;
 - an existing computer that already runs Hermes remains supported;
 - the Bot SKU never installs an unpinned latest Hermes build onto a blank non-template computer.
 

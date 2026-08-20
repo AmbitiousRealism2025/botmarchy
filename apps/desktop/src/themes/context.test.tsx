@@ -2,7 +2,7 @@ import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { __resetBackendSkinSync, ingestBackendSkin } from './backend-sync'
-import { ThemeProvider } from './context'
+import { ThemeProvider, useTheme } from './context'
 
 // The live-authoring loop: Hermes writes/edits one skin file and every surface
 // repaints. An in-place edit keeps the NAME — only the palette moves.
@@ -34,6 +34,68 @@ describe('ThemeProvider ← backend skin sync', () => {
     expect(cssVar('--ui-bg-sidebar')).toBe('var(--orgo-panel)')
     expect(cssVar('--ui-row-active-background')).toBe('var(--orgo-card)')
     expect(cssVar('--dt-popover')).toBe('var(--orgo-inset)')
+    expect(cssVar('--ui-panel-background')).toBe('var(--orgo-inset)')
+    expect(cssVar('--ui-chat-bubble-background')).toBe('var(--orgo-inset)')
+    expect(cssVar('--orgo-app')).toBe('#070707')
+  })
+
+  it('paints a readable Orgo light contract for Cmd+K, panels, and chat', () => {
+    window.localStorage.setItem('hermes-desktop-mode-v1', 'light')
+    window.localStorage.setItem('hermes-orgo-black-migration-v1', '1')
+    window.localStorage.setItem('hermes-desktop-theme-v2', 'orgo')
+
+    render(
+      <ThemeProvider>
+        <div />
+      </ThemeProvider>
+    )
+
+    expect(window.document.documentElement.dataset.hermesTheme).toBe('orgo')
+    expect(window.document.documentElement.dataset.hermesMode).toBe('light')
+    expect(window.document.documentElement.classList.contains('dark')).toBe(false)
+    expect(cssVar('--orgo-app')).toBe('#f7f7f7')
+    expect(cssVar('--orgo-ink')).toBe('#171717')
+    expect(cssVar('--ui-chat-bubble-background')).toBe('var(--orgo-card)')
+    expect(cssVar('--ui-panel-background')).toBe('var(--orgo-card)')
+    expect(cssVar('--dt-popover')).toBe('var(--orgo-card)')
+    expect(cssVar('--ui-chat-surface-background')).toBe('var(--orgo-app)')
+    expect(cssVar('--ui-text-primary')).toBe('var(--orgo-ink)')
+    expect(cssVar('--theme-neutral-card')).toBe('#ffffff')
+  })
+
+  it('round-trips Orgo dark ↔ light without leaving dark neutrals behind', () => {
+    window.localStorage.setItem('hermes-orgo-black-migration-v1', '1')
+    window.localStorage.setItem('hermes-desktop-theme-v2', 'orgo')
+    window.localStorage.setItem('hermes-desktop-mode-v1', 'dark')
+
+    function ModeToggle() {
+      const { setMode, resolvedMode } = useTheme()
+
+      return (
+        <button onClick={() => setMode(resolvedMode === 'dark' ? 'light' : 'dark')} type="button">
+          toggle
+        </button>
+      )
+    }
+
+    render(
+      <ThemeProvider>
+        <ModeToggle />
+      </ThemeProvider>
+    )
+
+    expect(cssVar('--orgo-app')).toBe('#070707')
+    expect(cssVar('--ui-chat-bubble-background')).toBe('var(--orgo-inset)')
+
+    act(() => {
+      window.document.querySelector('button')?.click()
+    })
+
+    expect(cssVar('--orgo-app')).toBe('#f7f7f7')
+    expect(cssVar('--ui-chat-bubble-background')).toBe('var(--orgo-card)')
+    expect(cssVar('--ui-panel-background')).toBe('var(--orgo-card)')
+    expect(cssVar('--theme-neutral-chrome')).toBe('#f3f3f3')
+    expect(window.document.documentElement.dataset.hermesMode).toBe('light')
   })
 
   it('migrates an existing legacy palette to Orgo Black once', () => {

@@ -4,22 +4,46 @@ import { test } from 'vitest'
 
 import {
   beginOrgoTailscaleSetup,
+  BOT_ORGO_LEGACY_WORKSPACE_NAME,
   BOT_ORGO_WORKSPACE_NAME,
   BOT_REMOTE_HERMES_REF,
+  buildOrgoAgentMcpInstallCommands,
+  buildOrgoAgentMcpProbeCommand,
+  buildOrgoWallpaperApplyCommand,
+  buildOrgoWallpaperInstallCommands,
   createOrgoComputer,
   doctorOrgoComputer,
   ensureHermesInstalledOnOrgo,
+  ensureOrgoAgentMcpServer,
   ensureOrgoComputerRunning,
+  ensureOrgoDesktopWallpaper,
   extractTailscaleAuthUrl,
+  findOrCreateOrgoWorkspace,
+  findOrCreateSharedHermesComputer,
   listOrgoComputers,
   listOrgoWorkspaces,
+  ORGO_AGENT_MCP_REMOTE_PATH,
+  ORGO_AGENT_MCP_SERVER_NAME,
+  ORGO_AGENT_MCP_STAGING_PATH,
+  ORGO_AGENT_MCP_UPLOAD_CHUNK_SIZE,
+  ORGO_SILK_WALLPAPER_PATH,
+  ORGO_WALLPAPER_PROBE_COMMAND,
+  ORGO_WALLPAPER_STAGING_PATH,
+  ORGO_WALLPAPER_UPLOAD_CHUNK_SIZE,
+  orgoAgentMcpEntry,
+  orgoMcpEntries,
   orgoMcpEntry,
   orgoProcessEnv,
   parseTailscaleStatus,
   persistOrgoEnvironmentOnRemote,
   pickOrgoWorkspaceByName,
   pickSharedHermesComputer,
-  resolveHermesAgentTemplateRef
+  resolveHermesAgentTemplateRef,
+  resolveOrgoAgentMcpAssetPath,
+  TAILSCALE_AUTH_LOG_PATH,
+  TAILSCALE_AUTH_POLL_COMMAND,
+  TAILSCALE_INSTALL_TIMEOUT_SECONDS,
+  TAILSCALE_STATUS_SUMMARY_URL
 } from './orgo-broker'
 import { BOT_TEMPLATE_REF } from './product'
 
@@ -61,6 +85,121 @@ test('MCP entry references the process env instead of copying the API key', () =
   })
 })
 
+test('delegated Orgo agent MCP entry is pinned to the provisioned computer', () => {
+  const entry = orgoAgentMcpEntry(COMPUTER_ID)
+
+  assert.equal(entry.trust, 'untrusted')
+  assert.equal(entry.command, '/usr/local/lib/hermes-agent/venv/bin/python')
+  assert.deepEqual(entry.args, [ORGO_AGENT_MCP_REMOTE_PATH])
+  assert.equal(entry.env.ORGO_API_KEY, '${env:ORGO_API_KEY}')
+  assert.equal(entry.env.ORGO_DEFAULT_COMPUTER_ID, COMPUTER_ID)
+  assert.equal(entry.env.ORGO_AGENT_MAX_STEPS, '30')
+  assert.equal(entry.timeout, 960)
+})
+
+test('delegated Orgo agent server is bundled from the Hermes source tree in development', () => {
+  assert.match(resolveOrgoAgentMcpAssetPath(process.cwd()) || '', /hermes_cli\/orgo_agent_mcp\.py$/)
+})
+
+test('every synced profile receives low-level and delegated Orgo MCP servers', () => {
+  const entries = orgoMcpEntries(COMPUTER_ID)
+
+  assert.deepEqual(Object.keys(entries).sort(), ['orgo', ORGO_AGENT_MCP_SERVER_NAME].sort())
+  assert.equal(entries.orgo?.env.ORGO_DEFAULT_COMPUTER_ID, COMPUTER_ID)
+  assert.equal(entries[ORGO_AGENT_MCP_SERVER_NAME]?.env.ORGO_DEFAULT_COMPUTER_ID, COMPUTER_ID)
+})
+
+test('delegated Orgo agent server upload is chunked and installed atomically', () => {
+  const commands = buildOrgoAgentMcpInstallCommands(Buffer.alloc(ORGO_AGENT_MCP_UPLOAD_CHUNK_SIZE).toString('base64'))
+  const finalCommand = commands.at(-1) || ''
+  const encodedScript = finalCommand.match(/printf %s "([^"]+)" \| base64 -d \| python3/)?.[1] || ''
+  const script = Buffer.from(encodedScript, 'base64').toString('utf8')
+
+  assert.equal(commands.length > 3, true)
+  assert.match(commands[0] || '', new RegExp(ORGO_AGENT_MCP_STAGING_PATH))
+  assert.match(script, new RegExp(ORGO_AGENT_MCP_REMOTE_PATH))
+  assert.match(script, /os\.replace\(temporary, target\)/)
+})
+
+test('delegated Orgo agent server skips upload when its hash matches', async () => {
+  const commands: string[] = []
+  const serverBytes = Buffer.from('print("server")')
+
+  const expectedProbe = buildOrgoAgentMcpProbeCommand(
+    'ff005961596f9819dc9b55356b9abebabbd866adf2a359a02b1491b2c42baa24'
+  )
+
+  const fetchImpl = (async (_input: string | URL | Request, init?: RequestInit) => {
+    const command = String((JSON.parse(String(init?.body || '{}')) as { command?: string }).command || '')
+    commands.push(command)
+
+    return json({ success: true, exit_code: 0, output: 'ready' })
+  }) as typeof fetch
+
+  const result = await ensureOrgoAgentMcpServer('orgo-secret', COMPUTER_ID, () => serverBytes, fetchImpl)
+
+  assert.equal(result.installedNow, false)
+  assert.deepEqual(commands, [expectedProbe])
+})
+
+test('delegated Orgo agent server uploads and verifies when missing', async () => {
+  const commands: string[] = []
+  let probeCount = 0
+
+  const fetchImpl = (async (_input: string | URL | Request, init?: RequestInit) => {
+    const command = String((JSON.parse(String(init?.body || '{}')) as { command?: string }).command || '')
+    commands.push(command)
+
+    if (command.includes(`sha256sum ${ORGO_AGENT_MCP_REMOTE_PATH}`)) {
+      probeCount += 1
+
+      return probeCount === 1
+        ? json({ success: false, exit_code: 1, output: 'missing' })
+        : json({ success: true, exit_code: 0, output: 'verified' })
+    }
+
+    return json({ success: true, exit_code: 0, output: '' })
+  }) as typeof fetch
+
+  const result = await ensureOrgoAgentMcpServer(
+    'orgo-secret',
+    COMPUTER_ID,
+    () => Buffer.from('print("server")'),
+    fetchImpl
+  )
+
+  assert.equal(result.installedNow, true)
+  assert.equal(probeCount, 2)
+  assert.match(commands[1] || '', new RegExp(ORGO_AGENT_MCP_STAGING_PATH))
+  assert.match(commands[2] || '', new RegExp(`>> ${ORGO_AGENT_MCP_STAGING_PATH}`))
+  assert.match(commands[3] || '', /\| base64 -d \| python3/)
+})
+
+test('delegated Orgo agent server removes staging data after an upload failure', async () => {
+  const commands: string[] = []
+
+  const fetchImpl = (async (_input: string | URL | Request, init?: RequestInit) => {
+    const command = String((JSON.parse(String(init?.body || '{}')) as { command?: string }).command || '')
+    commands.push(command)
+
+    if (command.includes(`sha256sum ${ORGO_AGENT_MCP_REMOTE_PATH}`)) {
+      return json({ success: false, exit_code: 1, output: 'missing' })
+    }
+
+    if (command.startsWith('printf %s') && command.includes(`>> ${ORGO_AGENT_MCP_STAGING_PATH}`)) {
+      return json({ success: false, exit_code: 1, output: 'write failed' })
+    }
+
+    return json({ success: true, exit_code: 0, output: '' })
+  }) as typeof fetch
+
+  await assert.rejects(
+    ensureOrgoAgentMcpServer('orgo-secret', COMPUTER_ID, () => Buffer.from('server'), fetchImpl),
+    /write failed/
+  )
+  assert.equal(commands.at(-1), `rm -f ${ORGO_AGENT_MCP_STAGING_PATH}`)
+})
+
 test('lists workspaces and computers without exposing the key in parsed results', async () => {
   const calls: string[] = []
 
@@ -92,14 +231,52 @@ test('lists workspaces and computers without exposing the key in parsed results'
   assert.equal(calls.some(url => url.includes('/computers')), false)
 })
 
-test('reuses only the dedicated Hermes Bots workspace', () => {
+test('reuses dedicated Korgo Bot and legacy Hermes Bots workspaces', () => {
   const workspaces = [
     { id: 'first', name: 'Existing project' },
-    { id: WORKSPACE_ID, name: ' hermes bots ' }
+    { id: WORKSPACE_ID, name: ' korgo bot ' },
+    { id: 'legacy', name: ' hermes bots ' }
   ]
 
   assert.equal(pickOrgoWorkspaceByName(workspaces, BOT_ORGO_WORKSPACE_NAME)?.id, WORKSPACE_ID)
+  assert.equal(pickOrgoWorkspaceByName(workspaces, BOT_ORGO_LEGACY_WORKSPACE_NAME)?.id, 'legacy')
   assert.equal(pickOrgoWorkspaceByName(workspaces, 'Missing'), undefined)
+})
+
+test('recovers the legacy workspace when create races an existing resource', async () => {
+  let listCalls = 0
+  let createCalls = 0
+
+  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input)
+
+    if (url.endsWith('/workspaces') && init?.method === 'POST') {
+      createCalls += 1
+
+      return json({ detail: 'workspace name already exists' }, 409)
+    }
+
+    if (url.endsWith('/workspaces')) {
+      listCalls += 1
+
+      return listCalls === 1
+        ? json({ projects: [] })
+        : json({ projects: [{ id: WORKSPACE_ID, name: 'Hermes Bots' }] })
+    }
+
+    return json({}, 404)
+  }) as typeof fetch
+
+  const workspace = await findOrCreateOrgoWorkspace(
+    'orgo-secret',
+    BOT_ORGO_WORKSPACE_NAME,
+    [BOT_ORGO_LEGACY_WORKSPACE_NAME],
+    fetchImpl
+  )
+
+  assert.equal(workspace.id, WORKSPACE_ID)
+  assert.equal(listCalls, 2)
+  assert.equal(createCalls, 1)
 })
 
 test('creates a computer from the curated template', async () => {
@@ -114,6 +291,60 @@ test('creates a computer from the curated template', async () => {
   const computer = await createOrgoComputer('orgo-secret', { workspaceId: WORKSPACE_ID }, fetchImpl)
   assert.equal(computer.id, COMPUTER_ID)
   assert.match(body, /system\/hermes-agent@1\.0\.0/)
+})
+
+test('reuses the canonical shared computer when workspace summaries omit template metadata', () => {
+  const computer = pickSharedHermesComputer(
+    [
+      {
+        id: COMPUTER_ID,
+        name: 'Shared computer',
+        status: 'running'
+      }
+    ],
+    BOT_TEMPLATE_REF
+  )
+
+  assert.equal(computer?.id, COMPUTER_ID)
+})
+
+test('recovers the shared computer when create returns a duplicate-name conflict', async () => {
+  let listCalls = 0
+  let createCalls = 0
+
+  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input)
+
+    if (url.endsWith('/computers') && init?.method === 'POST') {
+      createCalls += 1
+
+      return json({ detail: 'computer name already exists' }, 409)
+    }
+
+    if (url.endsWith(`/workspaces/${WORKSPACE_ID}`)) {
+      listCalls += 1
+
+      return listCalls === 1
+        ? json({ id: WORKSPACE_ID, name: BOT_ORGO_WORKSPACE_NAME, desktops: [] })
+        : json({
+            id: WORKSPACE_ID,
+            name: BOT_ORGO_WORKSPACE_NAME,
+            desktops: [{ id: COMPUTER_ID, name: 'Shared computer', status: 'running' }]
+          })
+    }
+
+    return json({}, 404)
+  }) as typeof fetch
+
+  const computer = await findOrCreateSharedHermesComputer(
+    'orgo-secret',
+    { workspaceId: WORKSPACE_ID, name: 'Shared computer', templateRef: BOT_TEMPLATE_REF },
+    fetchImpl
+  )
+
+  assert.equal(computer.id, COMPUTER_ID)
+  assert.equal(listCalls, 2)
+  assert.equal(createCalls, 1)
 })
 
 test('pins the Bot product to its tested Orgo template', async () => {
@@ -381,25 +612,38 @@ test('parses Tailscale status and one-time login URLs', () => {
 
 test('starts Tailscale and returns the VM authorization challenge', async () => {
   const commands: string[] = []
+  const installTimeouts: number[] = []
 
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
 
     if (url.endsWith('/bash')) {
-      const body = JSON.parse(String(init?.body || '{}')) as { command?: string }
+      const body = JSON.parse(String(init?.body || '{}')) as { command?: string; timeout?: number }
       const command = String(body.command || '')
       commands.push(command)
 
-      if (command.includes('tailscale status')) {
-        return json({ success: true, exit_code: 0, output: '{"BackendState":"NeedsLogin"}' })
+      if (command.includes('nohup tailscale up')) {
+        return json({ success: true, exit_code: 0, output: 'started' })
       }
 
-      if (command.includes('tailscale up')) {
+      if (command === TAILSCALE_AUTH_POLL_COMMAND) {
         return json({
           success: true,
           exit_code: 0,
-          output: 'https://login.tailscale.com/a/setup123'
+          output: '{"BackendState":"NeedsLogin"}\nhttps://login.tailscale.com/a/setup123'
         })
+      }
+
+      if (command.includes('tailscale.com/install.sh')) {
+        installTimeouts.push(Number(body.timeout))
+
+        if (installTimeouts.length === 1) {
+          return json({ success: false, exit_code: 1, output: 'context canceled' })
+        }
+      }
+
+      if (command.includes('tailscale status')) {
+        return json({ success: true, exit_code: 0, output: '{"BackendState":"NeedsLogin"}' })
       }
 
       return json({ success: true, exit_code: 0, output: '' })
@@ -408,20 +652,25 @@ test('starts Tailscale and returns the VM authorization challenge', async () => 
     return json({ id: COMPUTER_ID, name: 'Shared', status: 'running', instance_id: '8b517302' })
   }) as typeof fetch
 
-  const status = await beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl)
+  const status = await beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl, async () => undefined)
   assert.equal(status.authUrl, 'https://login.tailscale.com/a/setup123')
   assert.equal(commands.some(command => command.includes('command -v tailscaled')), true)
   assert.equal(commands.some(command => command.includes('/usr/sbin/tailscaled')), true)
   assert.equal(commands.some(command => command.includes('--tun=userspace-networking')), true)
   assert.equal(commands.some(command => command.includes('--ssh')), true)
-  assert.equal(commands.some(command => command.includes('timeout 12s tailscale up')), true)
+  assert.equal(commands.some(command => command.includes('nohup tailscale up --json --ssh')), true)
+  assert.equal(commands.some(command => command.includes("pkill -f '^tailscale (up|login)( |$)'")), true)
+  assert.equal(commands.some(command => command.includes(TAILSCALE_AUTH_LOG_PATH)), true)
+  assert.equal(commands.some(command => command.includes('timeout 12s tailscale up')), false)
   assert.equal(commands.some(command => command.includes('timeout 3s tailscale status')), true)
   assert.equal(commands.some(command => command.includes('pkill -x tailscaled')), true)
   assert.equal(commands.some(command => command.includes('nohup "$tailscaled_bin"')), true)
+  assert.deepEqual(installTimeouts, [TAILSCALE_INSTALL_TIMEOUT_SECONDS, TAILSCALE_INSTALL_TIMEOUT_SECONDS])
 })
 
-test('falls back to tailscale login when up omits the authorization URL', async () => {
+test('waits for one authorization process instead of starting competing logins', async () => {
   const commands: string[] = []
+  let pollCount = 0
 
   const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
@@ -430,8 +679,20 @@ test('falls back to tailscale login when up omits the authorization URL', async 
       const command = String((JSON.parse(String(init?.body || '{}')) as { command?: string }).command || '')
       commands.push(command)
 
-      if (command.includes('tailscale login')) {
-        return json({ success: true, exit_code: 0, output: 'https://login.tailscale.com/a/fallback123' })
+      if (command.includes('nohup tailscale up')) {
+        return json({ success: true, exit_code: 0, output: 'started' })
+      }
+
+      if (command === TAILSCALE_AUTH_POLL_COMMAND) {
+        pollCount += 1
+
+        return pollCount === 13
+          ? json({
+              success: true,
+              exit_code: 0,
+              output: '{"BackendState":"NeedsLogin"}\nhttps://login.tailscale.com/a/delayed123'
+            })
+          : json({ success: true, exit_code: 0, output: '{"BackendState":"NeedsLogin"}' })
       }
 
       if (command.includes('tailscale status')) {
@@ -444,22 +705,85 @@ test('falls back to tailscale login when up omits the authorization URL', async 
     return json({ id: COMPUTER_ID, name: 'Shared', status: 'running', instance_id: '8b517302' })
   }) as typeof fetch
 
-  const status = await beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl)
-  assert.equal(status.authUrl, 'https://login.tailscale.com/a/fallback123')
-  assert.equal(commands.some(command => command.includes('tailscale login')), true)
-  assert.equal(commands.some(command => command.includes('timeout 12s')), true)
+  const status = await beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl, async () => undefined)
+  assert.equal(status.authUrl, 'https://login.tailscale.com/a/delayed123')
+  assert.equal(pollCount, 13)
+  assert.equal(commands.filter(command => command.includes(`rm -f ${TAILSCALE_AUTH_LOG_PATH}`)).length, 1)
+  assert.equal(commands.some(command => command.includes('tailscale up --json --ssh')), true)
+  assert.equal(commands.some(command => command.includes('--force-reauth')), false)
+  assert.equal(commands.some(command => command.includes('timeout 12s')), false)
 })
 
 test('reports a missing Tailscale authorization URL instead of silently stalling', async () => {
-  const fetchImpl = (async (input: string | URL | Request) =>
-    String(input).endsWith('/bash')
-      ? json({ success: true, exit_code: 0, output: '' })
-      : json({ id: COMPUTER_ID, name: 'Shared', status: 'running', instance_id: '8b517302' })) as typeof fetch
+  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+    if (!String(input).endsWith('/bash')) {
+      return json({ id: COMPUTER_ID, name: 'Shared', status: 'running', instance_id: '8b517302' })
+    }
+
+    const command = String((JSON.parse(String(init?.body || '{}')) as { command?: string }).command || '')
+
+    if (command === TAILSCALE_AUTH_POLL_COMMAND) {
+      return json({ success: true, exit_code: 0, output: '{"BackendState":"NeedsLogin","AuthURL":""}' })
+    }
+
+    return json({ success: true, exit_code: 0, output: command.includes('nohup tailscale up') ? 'started' : '' })
+  }) as typeof fetch
 
   await assert.rejects(
-    beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl),
-    /Tailscale did not return a cloud-computer authorization URL/
+    beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl, async () => undefined),
+    error => {
+      assert.match(String(error), /Tailscale registration did not return a sign-in link/)
+      assert.equal(String(error).includes('"BackendState"'), false)
+      assert.equal(String(error).length < 240, true)
+
+      return true
+    }
   )
+})
+
+test('reports a live Tailscale coordination outage without blaming the user plan', async () => {
+  let statusRequestHadAuthorization = false
+
+  const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input)
+
+    if (url === TAILSCALE_STATUS_SUMMARY_URL) {
+      statusRequestHadAuthorization = new Headers(init?.headers).has('Authorization')
+
+      return json({
+        components: [{ name: 'Coordination service', status: 'partial_outage' }]
+      })
+    }
+
+    if (!url.endsWith('/bash')) {
+      return json({ id: COMPUTER_ID, name: 'Shared', status: 'running', instance_id: '8b517302' })
+    }
+
+    const command = String((JSON.parse(String(init?.body || '{}')) as { command?: string }).command || '')
+
+    return json({
+      success: true,
+      exit_code: 0,
+      output:
+        command === TAILSCALE_AUTH_POLL_COMMAND
+          ? '{"BackendState":"NeedsLogin","AuthURL":""}'
+          : command.includes('nohup tailscale up')
+            ? 'started'
+            : ''
+    })
+  }) as typeof fetch
+
+  await assert.rejects(
+    beginOrgoTailscaleSetup('orgo-secret', COMPUTER_ID, fetchImpl, async () => undefined),
+    error => {
+      assert.match(String(error), /currently reporting a coordination-service outage/)
+      assert.match(String(error), /not related to your Tailscale plan/)
+      assert.match(String(error), /status\.tailscale\.com/)
+
+      return true
+    }
+  )
+  assert.equal(statusRequestHadAuthorization, false)
 })
 
 test('writes the Orgo key to the remote secret env rather than MCP config', async () => {
@@ -475,4 +799,126 @@ test('writes the Orgo key to the remote secret env rather than MCP config', asyn
   assert.match(command, /ORGO_API_KEY/)
   assert.equal(command.includes('orgo-secret'), false)
   assert.match(command, /chmod/)
+})
+
+test('wallpaper probe checks the silk asset md5 before installing', () => {
+  assert.match(ORGO_WALLPAPER_PROBE_COMMAND, /desktop-silk-wallpaper\.png/)
+  assert.match(ORGO_WALLPAPER_PROBE_COMMAND, /7febc8b0943cddc162bb544de31008bb/)
+})
+
+test('wallpaper apply command supports GNOME, XFCE, and PCManFM desktops', () => {
+  const command = buildOrgoWallpaperApplyCommand()
+
+  assert.match(command, new RegExp(ORGO_SILK_WALLPAPER_PATH.replace(/\//g, '\\/')))
+  assert.match(command, /picture-options 'scaled'/)
+  assert.match(command, /xfconf-query -c xfce4-desktop/)
+  assert.match(command, /xfdesktop --reload/)
+  assert.match(command, /pcmanfm --set-wallpaper/)
+})
+
+test('wallpaper install stages bounded chunks and writes both target paths', () => {
+  const commands = buildOrgoWallpaperInstallCommands('aGVsbG8=')
+  const finalCommand = commands.at(-1) || ''
+  const encodedScript = finalCommand.match(/printf %s "([^"]+)" \| base64 -d \| python3/)?.[1] || ''
+  const script = Buffer.from(encodedScript, 'base64').toString('utf8')
+
+  assert.equal(commands.length, 3)
+  assert.match(commands[0] || '', new RegExp(ORGO_WALLPAPER_STAGING_PATH))
+  assert.match(commands[1] || '', /aGVsbG8=/)
+  assert.match(script, /desktop-silk-wallpaper\.png/)
+  assert.match(script, /orgo-background\.png/)
+})
+
+test('wallpaper upload commands stay below the Orgo request limit', () => {
+  const commands = buildOrgoWallpaperInstallCommands(Buffer.alloc(944_614).toString('base64'))
+  const chunkCommands = commands.slice(1, -1)
+
+  assert.equal(chunkCommands.length > 1, true)
+  assert.equal(
+    chunkCommands.every(command => command.length <= ORGO_WALLPAPER_UPLOAD_CHUNK_SIZE + 128),
+    true
+  )
+})
+
+test('ensureOrgoDesktopWallpaper skips upload when the silk asset is already present', async () => {
+  const commands: string[] = []
+
+  const fetchImpl = (async (_input: string | URL | Request, init?: RequestInit) => {
+    const command = String((JSON.parse(String(init?.body || '{}')) as { command?: string }).command || '')
+    commands.push(command)
+
+    if (command === ORGO_WALLPAPER_PROBE_COMMAND) {
+      return json({ success: true, exit_code: 0, output: '' })
+    }
+
+    return json({ success: true, exit_code: 0, output: '' })
+  }) as typeof fetch
+
+  const result = await ensureOrgoDesktopWallpaper('orgo-secret', COMPUTER_ID, () => Buffer.from('unused'), fetchImpl)
+
+  assert.equal(result.installedNow, false)
+  assert.equal(result.applied, true)
+  assert.equal(commands.length, 2)
+  assert.match(commands[1] || '', /gsettings set org\.gnome\.desktop\.background picture-uri/)
+})
+
+test('ensureOrgoDesktopWallpaper uploads the bundled asset when missing', async () => {
+  const commands: string[] = []
+  let probeCount = 0
+
+  const fetchImpl = (async (_input: string | URL | Request, init?: RequestInit) => {
+    const command = String((JSON.parse(String(init?.body || '{}')) as { command?: string }).command || '')
+    commands.push(command)
+
+    if (command === ORGO_WALLPAPER_PROBE_COMMAND) {
+      probeCount += 1
+
+      return probeCount === 1
+        ? json({ success: false, exit_code: 1, output: 'missing' })
+        : json({ success: true, exit_code: 0, output: 'verified' })
+    }
+
+    return json({ success: true, exit_code: 0, output: '' })
+  }) as typeof fetch
+
+  const result = await ensureOrgoDesktopWallpaper(
+    'orgo-secret',
+    COMPUTER_ID,
+    () => Buffer.from('wallpaper-bytes'),
+    fetchImpl
+  )
+
+  assert.equal(result.installedNow, true)
+  assert.equal(result.applied, true)
+  assert.equal(commands.length, 6)
+  assert.match(commands[1] || '', new RegExp(ORGO_WALLPAPER_STAGING_PATH))
+  assert.match(commands[2] || '', /d2FsbHBhcGVyLWJ5dGVz/)
+  assert.match(commands[3] || '', /\| base64 -d \| python3/)
+  assert.match(commands[4] || '', /xfconf-query/)
+  assert.equal(commands[5], ORGO_WALLPAPER_PROBE_COMMAND)
+})
+
+test('ensureOrgoDesktopWallpaper removes staging data when a chunk fails', async () => {
+  const commands: string[] = []
+
+  const fetchImpl = (async (_input: string | URL | Request, init?: RequestInit) => {
+    const command = String((JSON.parse(String(init?.body || '{}')) as { command?: string }).command || '')
+    commands.push(command)
+
+    if (command === ORGO_WALLPAPER_PROBE_COMMAND) {
+      return json({ success: false, exit_code: 1, output: 'missing' })
+    }
+
+    if (command.startsWith('printf %s') && command.includes(`>> ${ORGO_WALLPAPER_STAGING_PATH}`)) {
+      return json({ success: false, exit_code: 1, output: 'write failed' })
+    }
+
+    return json({ success: true, exit_code: 0, output: '' })
+  }) as typeof fetch
+
+  await assert.rejects(
+    ensureOrgoDesktopWallpaper('orgo-secret', COMPUTER_ID, () => Buffer.from('wallpaper-bytes'), fetchImpl),
+    /write failed/
+  )
+  assert.match(commands.at(-1) || '', new RegExp(`rm -f ${ORGO_WALLPAPER_STAGING_PATH}`))
 })

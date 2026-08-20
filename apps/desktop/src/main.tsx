@@ -24,10 +24,22 @@ import { HapticsProvider } from './components/haptics-provider'
 import { RootTooltipProvider } from './components/ui/tooltip'
 import { I18nProvider } from './i18n'
 import { installClipboardShim } from './lib/clipboard'
+import { BOT_APP_ICON_ASSET, BOT_APP_NAME, isBotProduct } from './lib/product'
 import { queryClient } from './lib/query-client'
 import { ThemeProvider } from './themes/context'
 
 installClipboardShim()
+
+const botProduct = isBotProduct()
+document.title = botProduct ? BOT_APP_NAME : 'Hermes'
+
+if (botProduct) {
+  const iconPath = `${import.meta.env.BASE_URL}${BOT_APP_ICON_ASSET}`
+
+  for (const link of document.querySelectorAll<HTMLLinkElement>('link[rel*="icon"]')) {
+    link.href = iconPath
+  }
+}
 
 // The perf probe ships in dev, and in a production build ONLY when explicitly
 // opted in (VITE_PERF_PROBE=1) — this lets the perf harness measure a real,
@@ -40,7 +52,7 @@ if (import.meta.env.MODE !== 'production' || import.meta.env.VITE_PERF_PROBE ===
 const winParam = new URLSearchParams(window.location.search).get('win')
 
 if (winParam === 'hud') {
-  document.title = 'Hermes HUD'
+  document.title = `${botProduct ? BOT_APP_NAME : 'Hermes'} HUD`
 }
 
 if (winParam === 'overlay') {

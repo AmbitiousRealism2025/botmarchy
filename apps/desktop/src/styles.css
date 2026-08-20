@@ -365,6 +365,8 @@
       var(--theme-bubble-seed) var(--theme-mix-bubble),
       var(--theme-neutral-card)
     );
+    /* Plugin / floating menus — opaque elevated surface (never leave unset). */
+    --ui-panel-background: var(--ui-chat-bubble-background);
     --ui-assistant-message-background: #262626;
     --ui-user-message-background: #5a5a5a;
     --ui-user-message-hover-background: #646464;
@@ -1980,9 +1982,10 @@ button[data-slot='aui_msg-reactions'] svg {
    root default until this surface publishes its first measurement. See
    surface-vars.ts. */
 [data-chat-surface] {
-  /* Orgo Bot/Grok Bot messaging contract. Chat deliberately does not inherit
-     the Hermes skin: the agent runtime is infrastructure, not the visual
-     identity. Keep these literals in sync with OpenBot's sampled palette. */
+  /* Orgo messaging contract. Color roles track `--orgo-*`, which `applyTheme`
+     flips for light/dark. Mode-specific alphas (near-white vs near-black text)
+     live in the hermes-mode blocks below so light mode never inherits dark
+     ink opacities. */
   font-family:
     Inter,
     -apple-system,
@@ -1994,23 +1997,16 @@ button[data-slot='aui_msg-reactions'] svg {
   --ui-base: var(--orgo-ink);
   --ui-chat-surface-background: var(--orgo-app);
   --ui-assistant-message-background: var(--orgo-card);
-  --ui-user-message-background: #5a5a5a;
-  --ui-user-message-hover-background: #646464;
   --ui-bg-chrome: var(--orgo-app);
   --ui-bg-editor: var(--orgo-card);
   --ui-bg-elevated: var(--orgo-raised);
   --ui-text-primary: var(--orgo-ink);
   --ui-text-secondary: var(--orgo-ink-secondary);
-  --ui-text-tertiary: rgb(252 252 252 / 46%);
-  --ui-text-quaternary: rgb(252 252 252 / 30%);
   --ui-stroke-primary: var(--orgo-hairline);
-  --ui-stroke-secondary: rgb(51 51 51 / 72%);
-  --ui-stroke-tertiary: rgb(51 51 51 / 42%);
   --dt-background: var(--orgo-app);
   --dt-card: var(--orgo-card);
   --dt-card-foreground: var(--orgo-ink);
   --dt-foreground: var(--orgo-ink);
-  --dt-muted: #191919;
   --dt-muted-foreground: var(--orgo-ink-secondary);
   --dt-secondary: var(--orgo-raised);
   --dt-secondary-foreground: var(--orgo-ink-secondary);
@@ -2027,6 +2023,29 @@ button[data-slot='aui_msg-reactions'] svg {
   --composer-surface-pad-x: 0.5rem;
   --composer-surface-pad-y: 0.5rem;
   --thread-last-message-clearance: calc(var(--composer-measured-height) + 2rem);
+}
+
+:root.dark [data-chat-surface],
+[data-hermes-mode='dark'] [data-chat-surface] {
+  --ui-user-message-background: #5a5a5a;
+  --ui-user-message-hover-background: #646464;
+  --ui-text-tertiary: rgb(252 252 252 / 46%);
+  --ui-text-quaternary: rgb(252 252 252 / 30%);
+  --ui-stroke-secondary: rgb(51 51 51 / 72%);
+  --ui-stroke-tertiary: rgb(51 51 51 / 42%);
+  --dt-muted: #191919;
+}
+
+[data-hermes-mode='light'] [data-chat-surface] {
+  --ui-user-message-background: #e3e3e3;
+  --ui-user-message-hover-background: #d8d8d8;
+  --ui-text-tertiary: rgb(23 23 23 / 46%);
+  --ui-text-quaternary: rgb(23 23 23 / 30%);
+  --ui-stroke-secondary: rgb(214 214 214 / 90%);
+  --ui-stroke-tertiary: rgb(214 214 214 / 70%);
+  --ui-bg-elevated: var(--orgo-card);
+  --dt-muted: var(--orgo-inset);
+  --composer-fill: var(--orgo-card);
 }
 
 /* The simple Grok composer: attach on the left, one context-sensitive primary

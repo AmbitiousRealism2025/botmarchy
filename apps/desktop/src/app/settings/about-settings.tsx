@@ -80,7 +80,7 @@ export function AboutSettings() {
   let statusTone: 'idle' | 'available' | 'error' = 'idle'
 
   if (!genericUpdates) {
-    statusLine = 'Update from source with git pull, then rerun the Hermes Bots setup script.'
+    statusLine = 'Update from source with git pull, then rerun the Korgo Bot setup script.'
   } else if (!supported) {
     statusLine = status?.message ?? a.cantUpdate
     statusTone = 'error'

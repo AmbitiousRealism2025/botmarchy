@@ -1,6 +1,6 @@
 # Support
 
-Hermes Bots is an open-source, source-first preview.
+Korgo Bot is an open-source, source-first preview.
 
 ## Start here
 
@@ -22,7 +22,7 @@ Never post API keys, OAuth codes, cookies, Tailscale auth keys, SSH private keys
 
 ## Service-specific problems
 
-Billing, account access, quotas, and service outages for Orgo, Tailscale, Composio, OpenAI, or xAI must be handled by that service's support team. Hermes Bots maintainers can investigate the product integration but cannot access or change third-party accounts.
+Billing, account access, quotas, and service outages for Orgo, Tailscale, Composio, OpenAI, or xAI must be handled by that service's support team. Korgo Bot maintainers can investigate the product integration but cannot access or change third-party accounts.
 
 ## Security
 
