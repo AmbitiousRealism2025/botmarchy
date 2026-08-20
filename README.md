@@ -1,8 +1,30 @@
 <p align="center">
-  <img src="apps/desktop/assets/korgo-bot-icon.png" alt="Korgo Bot app icon" width="144" />
+  <img src="apps/desktop/assets/botmarchy-icon.png" alt="Botmarchy app icon" width="144" />
 </p>
 
-# Korgo Bot
+# Botmarchy
+
+> **The court of Omarchy.**
+
+Your Omarchy machine is the kingdom. Your bots are its court — advisors,
+researchers, and engineers with persistent memory, skills, and a shared
+court chamber (a computer they can actually use). Botmarchy runs on your
+hardware, over your tailnet, with the model subscriptions you already pay
+for.
+
+Botmarchy is a fork of [Korgo Bot](https://github.com/nickvasilescu/korgo-bot)
+(ultimately [Hermes Agent](https://github.com/NousResearch/hermes-agent) by
+Nous Research), re-pointed from the Orgo cloud at a self-hosted Linux box:
+any always-on machine on your tailnet becomes the bots' home. See
+[`docs/selfhost-linux-plan.md`](docs/selfhost-linux-plan.md) for the
+architecture and current status.
+
+---
+
+*The remainder of this README is inherited from upstream and describes the
+original Orgo-based product.*
+
+# Korgo Bot (upstream README)
 
 Korgo Bot is a focused macOS desktop app for creating persistent AI bots, giving them connected apps, and letting them share a private cloud computer.
 
