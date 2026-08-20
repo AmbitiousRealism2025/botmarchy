@@ -433,6 +433,10 @@ export function OrgoDesktopPane() {
           ? 'inset-0 z-[100] rounded-none'
           : 'z-[70] rounded-[8px] shadow-[0_0_0_1px_color-mix(in_srgb,var(--ui-stroke-secondary)_55%,transparent),0_8px_24px_-12px_rgb(0_0_0/0.55)]'
       }`}
+      // Fullscreen owns the window's keyboard. The global chat type-to-focus
+      // and paste-to-focus handlers yield whenever this overlay marker exists,
+      // leaving noVNC's focused canvas in control of printable keys.
+      data-overlay-surface={fullscreen ? '' : undefined}
       ref={desktopFrameRef}
       style={
         fullscreen
