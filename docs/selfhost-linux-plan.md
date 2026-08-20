@@ -59,6 +59,31 @@ Gotchas hit (and fixes):
 Remaining (interactive, user): onboarding via "Use this Mac instead",
 connect Codex provider, create 2 bots, verify memory across restart.
 
+### Phase 1 UI test run — PASSED 2026-08-20 (via CDP, no manual steps)
+
+The dev app exposes a renderer debug port (`127.0.0.1:9222`), so the UI was
+driven programmatically with `scripts/dev/korgo-cdp.mjs` (screenshot / eval):
+
+1. ✅ App booted straight into an existing roster — local mode picked up
+   the pre-existing `~/.hermes` profiles: 6 bots (Master Chief,
+   Quartermaster, Researcher, Codemonkey, Comms, Installer) + "The
+   Avengers" group, with 4-day-old conversation history.
+2. ✅ Provider auth carried over (badge: OpenAI gpt-5.6-sol) — no device
+   flow needed on this machine.
+3. ✅ Setup overlay dismissed via "Use this Mac instead" → "Skip remaining
+   setup" (local mode persisted across restarts; the Orgo step never
+   blocks the workspace).
+4. ✅ Full round-trip: sent "…Reply with exactly: LANE OK" to The Avengers
+   group → local gateway → GPT-5.6-sol → two bots replied "LANE OK", a
+   third asked a clarifying question, fourth streamed "Writing reply…".
+   Group routing + streaming indicators work.
+5. ✅ Restart persistence: clean kill + relaunch → all 6 bots, model badge,
+   and the LANE OK conversation intact; wizard not reshown.
+
+Known cosmetic: the right-rail Computer drawer still offers "Orgo
+connection" in local mode (harmless; will be repurposed/replaced in
+Phase 2). The `install-stamp.json` ENOENT warnings are dev-mode noise.
+
 Exit criteria: create 2 bots, group chat with @mentions, verify persistent
 memory across app restarts.
 
