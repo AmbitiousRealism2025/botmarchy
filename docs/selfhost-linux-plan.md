@@ -87,11 +87,55 @@ Phase 2). The `install-stamp.json` ENOENT warnings are dev-mode noise.
 Exit criteria: create 2 bots, group chat with @mentions, verify persistent
 memory across app restarts.
 
-## Phase 2 — gateway on the mini-PC (replace Orgo)
+## Phase 2 — gateway on the mini-PC (replace Orgo) — CORE DONE 2026-08-20
 
 See `docs/mini-pc-setup.md` for the box-side checklist (verified: install.sh
 is Arch-aware, `--commit` pins to korgo's ref, root FHS layout mirrors the
 Orgo VM).
+
+### Outcome
+
+**Zero patches required for the core flow.** Upstream Hermes desktop's SSH
+remote mode is fully generic; the Orgo flow is a provisioning wrapper around
+it. What was done instead of patching:
+
+1. Box-side: Hermes v0.20.1 at pinned ref installed user-local
+   (`~/.local/bin/hermes`), `hermes-gateway.service` (systemd --user,
+   loopback:9119, linger on).
+2. ThinkPad-side: `~/.config/Korgo Bot/connection.json` set to
+   `{mode: ssh, remote: {host: omarchy-1.tail9106ac.ts.net, user,
+   keyPath}}`, applied via the `hermes:connection-config:apply` IPC
+   (`window.hermesDesktop.applyConnectionConfig`) from the renderer — same
+call the Orgo flow makes.
+3. Credentials: `auth.json` copied from the ThinkPad (all 4 providers);
+   `config.yaml` model block set to `gpt-5.6-sol` / openai-codex. Bots
+   created after the switch inherit it.
+4. Verified end-to-end: bot creation, group + direct messages, replies
+   rendered, tunnel auto-rebootstrap after remote dashboard restart.
+
+### Gotchas found
+
+- **First-run choice wins at boot**: a persisted "local" first-run decision
+  outranks connection.json; the IPC apply (or UI gateway settings) is the
+  supported way to switch.
+- **Per-bot model pinning**: old bots keep their creation-time model in
+  renderer state (`hermes.desktop.composer.model` in localStorage) — a bot
+  created under a bad default keeps sending it regardless of global config.
+  Fix: create bots after the model config is right (or delete/recreate).
+- **safeStorage unavailable** in dev on Linux (no keyring in the app's
+  session): served token is not persisted; each app start mints a fresh
+  dashboard session instead. Functional, cosmetic warning in logs. Options:
+  enable plain-text token storage (Settings → Gateway) or ensure a keyring.
+- The right-rail "Orgo connection" drawer is inert in self-hosted mode; the
+  `orgo`/`orgo-agent` MCP sync no-ops without Orgo creds. Cosmetic.
+
+### Recommended follow-ups
+
+- Run `hermes setup` on omarchy-1 to mint fresh OAuth credentials for
+  Codex/OpenCode Go (shared OAuth tokens between two machines risk
+  refresh-token rotation logouts). Never `hermes update` (pinned ref).
+- Optional Phase 3: `dist:bot:linux` packaging, desktop entry; optional
+  wayvnc + `orgo-desktop.ts` static-cred patch for the Computer drawer.
 1. Prep the mini-PC (Omarchy):
    - Install Hermes via upstream NousResearch `install.sh` if it supports
      Arch; otherwise `uv` + pinned checkout of `ad9e8c9b…` (the ref korgo
