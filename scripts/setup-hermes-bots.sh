@@ -9,7 +9,7 @@ VERIFY=false
 
 usage() {
   cat <<'EOF'
-Set up Korgo Bot from a source checkout.
+Set up Botmarchy from a source checkout.
 
 Usage:
   ./scripts/setup-hermes-bots.sh [--run] [--verify]
@@ -48,7 +48,7 @@ done
 case "$(uname -s)" in
   Darwin|Linux) ;;
   *)
-    echo "Korgo Bot currently supports source use on macOS and Linux." >&2
+    echo "Botmarchy currently supports source use on macOS and Linux." >&2
     exit 1
     ;;
 esac
@@ -82,13 +82,13 @@ if [[ "$VERIFY" == true ]]; then
 fi
 
 if [[ "$RUN_APP" == true ]]; then
-  echo "Launching Korgo Bot..."
+  echo "Launching Botmarchy..."
   exec npm --workspace apps/desktop run dev:bot
 fi
 
 cat <<'EOF'
 
-Korgo Bot is ready.
+Botmarchy is ready.
 
 Launch it with:
   npm --workspace apps/desktop run dev:bot

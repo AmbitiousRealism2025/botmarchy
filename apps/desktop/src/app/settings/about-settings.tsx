@@ -80,7 +80,7 @@ export function AboutSettings() {
   let statusTone: 'idle' | 'available' | 'error' = 'idle'
 
   if (!genericUpdates) {
-    statusLine = 'Update from source with git pull, then rerun the Korgo Bot setup script.'
+    statusLine = 'Update from source with git pull, then rerun the Botmarchy setup script.'
   } else if (!supported) {
     statusLine = status?.message ?? a.cantUpdate
     statusTone = 'error'

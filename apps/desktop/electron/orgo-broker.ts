@@ -23,7 +23,7 @@ export const ORGO_AGENT_MCP_STAGING_PATH = '/tmp/hermes-orgo-agent-mcp.b64'
 export const ORGO_AGENT_MCP_UPLOAD_CHUNK_SIZE = 64 * 1024
 export const ORGO_AGENT_MCP_ARGS = [ORGO_AGENT_MCP_REMOTE_PATH]
 export const ORGO_AGENT_MCP_TIMEOUT_SECONDS = 960
-export const BOT_ORGO_WORKSPACE_NAME = 'Korgo Bot'
+export const BOT_ORGO_WORKSPACE_NAME = 'Botmarchy'
 export const BOT_ORGO_LEGACY_WORKSPACE_NAME = 'Hermes Bots'
 export const BOT_REMOTE_HERMES_REF = 'ad9e8c9b574ec6937cc09d8901ca83a769225963'
 export const HERMES_ORGO_INSTALL_SH = 'https://hermes-agent.nousresearch.com/install.sh'
@@ -50,7 +50,7 @@ export const TAILSCALE_INSTALL_COMMAND = [
   'command -v tailscale >/dev/null 2>&1 && { command -v tailscaled >/dev/null 2>&1 || [ -x /usr/sbin/tailscaled ]; }'
 ].join('\n')
 export const TAILSCALE_INSTALL_TIMEOUT_SECONDS = 180
-export const TAILSCALE_AUTH_LOG_PATH = '/tmp/korgo-tailscale-auth.log'
+export const TAILSCALE_AUTH_LOG_PATH = '/tmp/botmarchy-tailscale-auth.log'
 export const TAILSCALE_STATUS_SUMMARY_URL = 'https://status.tailscale.com/api/v2/summary.json'
 export const TAILSCALE_AUTH_POLL_COMMAND = [
   'command -v timeout >/dev/null 2>&1 && timeout 5s tailscale status --json 2>/dev/null || true',
@@ -992,7 +992,7 @@ export async function ensureHermesInstalledOnOrgo(
   if (isBotProduct()) {
     throw new OrgoDesktopError(
       'unavailable',
-      `Korgo Bot will not install an unpinned Hermes build. Use the ${BOT_TEMPLATE_REF} Orgo template or select a computer that already has Hermes installed.`
+      `Botmarchy will not install an unpinned Hermes build. Use the ${BOT_TEMPLATE_REF} Orgo template or select a computer that already has Hermes installed.`
     )
   }
 

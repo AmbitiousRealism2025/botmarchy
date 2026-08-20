@@ -522,7 +522,7 @@ export function BotSetupOverlay({
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-        <div className="text-xs uppercase tracking-wide text-muted-foreground">Korgo Bot</div>
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">Botmarchy</div>
         <h1 className="mt-1 text-xl font-semibold">{heading}</h1>
         {setup.step === 'orgo' ? (
           <div className="mt-4 grid gap-3">

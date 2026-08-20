@@ -766,8 +766,8 @@ const WINDOW_BUTTON_POSITION = {
 // Windows, where icons are full-bleed. Windows prefers the full-bleed
 // ICO (shipped to resources/ via extraResources) and only falls
 // back to the padded PNG if the ico is missing.
-const APP_ICON_PNG = isBotProduct() ? 'korgo-bot-icon.png' : 'apple-touch-icon.png'
-const APP_ICON_ICO = isBotProduct() ? 'korgo-bot-icon.ico' : 'icon.ico'
+const APP_ICON_PNG = isBotProduct() ? 'botmarchy-icon.png' : 'apple-touch-icon.png'
+const APP_ICON_ICO = isBotProduct() ? 'botmarchy-icon.ico' : 'icon.ico'
 
 const APP_ICON_PATHS = [
   ...(IS_WINDOWS
@@ -12649,7 +12649,7 @@ ipcMain.handle('hermes:updates:check', async () =>
   !allowsGenericHermesUpdates()
     ? {
         supported: false,
-        message: 'Update by pulling a reviewed Korgo Bot source release.',
+        message: 'Update by pulling a reviewed Botmarchy source release.',
         fetchedAt: Date.now()
       }
     : checkUpdates().catch(error => ({
@@ -12666,7 +12666,7 @@ ipcMain.handle('hermes:updates:apply', async (_event, payload) =>
     ? {
         ok: false,
         error: 'unavailable',
-        message: 'Pull a reviewed Korgo Bot source release and rerun the setup script.'
+        message: 'Pull a reviewed Botmarchy source release and rerun the setup script.'
       }
     : applyUpdates(payload || {}).catch(error => ({
         ok: false,

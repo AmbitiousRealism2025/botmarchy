@@ -12,9 +12,9 @@ import {
 } from './product'
 
 describe('bot product providers', () => {
-  it('uses the Korgo Bot display identity', () => {
-    expect(BOT_APP_NAME).toBe('Korgo Bot')
-    expect(BOT_APP_ICON_ASSET).toBe('korgo-bot-icon.png')
+  it('uses the Botmarchy display identity', () => {
+    expect(BOT_APP_NAME).toBe('Botmarchy')
+    expect(BOT_APP_ICON_ASSET).toBe('botmarchy-icon.png')
   })
 
   it('recognizes Codex and Grok only', () => {
