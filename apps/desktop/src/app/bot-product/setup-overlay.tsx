@@ -9,12 +9,14 @@ import { Loader2 } from '@/lib/icons'
 import { isBotProduct } from '@/lib/product'
 import { cn } from '@/lib/utils'
 
+import { parseSelfhostTarget } from './selfhost-parse'
+
 const STORAGE_KEY = 'hermes-bot-setup-v2'
 export const BOT_PROVIDER_SETUP_READY_EVENT = 'hermes-bots:provider-setup-ready'
 export const BOT_PROVIDER_SETUP_COMPLETE_EVENT = 'hermes-bots:provider-setup-complete'
 export const BOT_FIRST_PROFILE_EVENT = 'hermes-bots:first-profile'
 
-type SetupStep = 'bot' | 'composio' | 'orgo' | 'provider' | 'ready' | 'tailscale'
+type SetupStep = 'bot' | 'composio' | 'orgo' | 'provider' | 'ready' | 'selfhost' | 'tailscale'
 
 interface SetupState {
   botModel?: string
@@ -65,6 +67,50 @@ export function formatBotSetupError(error: unknown, fallback: string): string {
   return detail.length > 600 ? `${detail.slice(0, 600)}…` : detail || fallback
 }
 
+/**
+ * Map self-hosted SSH connection failures (raised across bootstrapSshConnection
+ * / remote-lifecycle, surfaced through the applyConnectionConfig IPC) to
+ * actionable copy. The IPC rejection carries only the message string — custom
+ * err.sshError fields do not survive the structured clone — so we match on
+ * message text the way formatBotSetupError does for Orgo errors.
+ */
+export function formatSelfhostError(error: unknown, fallback: string): string {
+  const detail =
+    (error instanceof Error ? error.message : String(error || ''))
+      .replace(/^Error invoking remote method '[^']+':\s*/i, '')
+      .trim() || fallback
+
+  if (/Hermes is not installed on the remote host/i.test(detail)) {
+    return 'Hermes was not found on that computer. Install it with the pinned command from the Botmarchy README, then try again.'
+  }
+
+  if (/is not an executable on the remote host/i.test(detail)) {
+    return 'The Hermes path set for this host is not executable. Check the path, or clear it to auto-detect.'
+  }
+
+  if (/--ssh-session-token-file|does not support .*ssh-owner-nonce/i.test(detail)) {
+    return 'The Hermes on that computer is too old for desktop remote mode. Update it to the pinned Botmarchy release and try again.'
+  }
+
+  if (/Permission denied|auth-failed|Please make sure you have the correct access/i.test(detail)) {
+    return 'SSH rejected the login. Check the user name, and make sure your key is authorized on that computer (ssh-copy-id).'
+  }
+
+  if (/timed out|Connection timed out|unreachable|Network is unreachable|No route to host/i.test(detail)) {
+    return 'Could not reach that computer. Check the address, and that it is online and reachable from this machine (same tailnet or LAN).'
+  }
+
+  if (/REMOTE HOST IDENTIFICATION HAS CHANGED|host-key-changed/i.test(detail)) {
+    return 'That computer’s host key changed (often after a reinstall). Clear the old entry with `ssh-keygen -R <host>` and try again.'
+  }
+
+  if (/Could not resolve/i.test(detail)) {
+    return 'That host name did not resolve. Check the spelling, or use its Tailscale IP.'
+  }
+
+  return detail.length > 600 ? `${detail.slice(0, 600)}…` : detail
+}
+
 function OrgoProvisioningProgress({ stage }: { stage: OrgoProvisioningStage }) {
   const copy = ORGO_PROVISIONING_COPY[stage]
 
@@ -110,6 +156,7 @@ function readSetup(): SetupState {
       parsed.step === 'provider' ||
       parsed.step === 'bot' ||
       parsed.step === 'composio' ||
+      parsed.step === 'selfhost' ||
       parsed.step === 'ready'
         ? parsed.step
         : 'orgo'
@@ -217,6 +264,10 @@ export function BotSetupOverlay({
   const [botName, setBotName] = useState('Assistant')
   const [composioKey, setComposioKey] = useState('')
   const [orgoKey, setOrgoKey] = useState('')
+  const [selfhostTarget, setSelfhostTarget] = useState('')
+  const [selfhostPort, setSelfhostPort] = useState('')
+  const [selfhostKeyPath, setSelfhostKeyPath] = useState('')
+  const [selfhostAdvanced, setSelfhostAdvanced] = useState(false)
   const [localTailscale, setLocalTailscale] = useState<DesktopTailscaleStatus | null>(null)
   const [remoteTailscale, setRemoteTailscale] = useState<DesktopTailscaleStatus | null>(null)
   const [busy, setBusy] = useState(false)
@@ -354,6 +405,52 @@ export function BotSetupOverlay({
   const useLocalHermes = () => {
     goToStep('provider')
     announceProviderSetupReady()
+  }
+
+  /** Connect to a user-owned computer over SSH — the self-hosted path.
+   * Applies the same connection the gateway-settings SSH form produces
+   * (mode 'ssh', global scope), which tears down the local backend,
+   * bootstraps the remote dashboard, and persists connection.json so
+   * restarts auto-connect (runPrimaryBackendStartup resolves a saved remote
+   * before anything else). */
+  const connectSelfhost = async () => {
+    const parsed = parseSelfhostTarget(selfhostTarget)
+
+    if (!parsed.target) {
+      setError(parsed.error || 'Enter the computer to connect to, like user@host.')
+
+      return
+    }
+
+    const portOverride = Number(selfhostPort.trim())
+    const port =
+      selfhostPort.trim() && Number.isInteger(portOverride) && portOverride > 0 && portOverride <= 65535
+        ? portOverride
+        : parsed.target.port
+
+    setBusy(true)
+    setError('')
+
+    try {
+      await window.hermesDesktop?.applyConnectionConfig({
+        mode: 'ssh',
+        profile: null,
+        sshHost: parsed.target.host,
+        sshUser: parsed.target.user,
+        sshPort: port ?? 22,
+        sshKeyPath: selfhostKeyPath.trim(),
+        sshRemoteHermesPath: '',
+        sshRemoteProfile: ''
+      })
+
+      setDoctor(current => ({ ...current, orgo: true }))
+      goToStep('provider')
+      announceProviderSetupReady()
+    } catch (caught) {
+      setError(formatSelfhostError(caught, 'Could not connect to that computer.'))
+    } finally {
+      setBusy(false)
+    }
   }
 
   const createBot = async () => {
@@ -513,11 +610,13 @@ export function BotSetupOverlay({
       ? 'Your cloud computer'
       : setup.step === 'tailscale'
         ? 'Private cloud connection'
-        : setup.step === 'bot'
-          ? 'Name your first bot'
-          : setup.step === 'composio'
-            ? 'Connect apps'
-            : 'Ready'
+        : setup.step === 'selfhost'
+          ? 'Use your own computer'
+          : setup.step === 'bot'
+            ? 'Name your first bot'
+            : setup.step === 'composio'
+              ? 'Connect apps'
+              : 'Ready'
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
@@ -545,6 +644,16 @@ export function BotSetupOverlay({
                   ? 'Create cloud computer'
                   : 'Use this Mac instead'}
             </Button>
+            {!orgoKey.trim() ? (
+              <button
+                className="text-xs text-muted-foreground underline"
+                disabled={busy}
+                onClick={() => goToStep('selfhost')}
+                type="button"
+              >
+                Use my own computer
+              </button>
+            ) : null}
             {busy && orgoProvisioningStage ? <OrgoProvisioningProgress stage={orgoProvisioningStage} /> : null}
           </div>
         ) : null}
@@ -592,6 +701,88 @@ export function BotSetupOverlay({
             >
               Connect Hermes
             </Button>
+          </div>
+        ) : null}
+        {setup.step === 'selfhost' ? (
+          <div className="mt-4 grid gap-3">
+            <p className="text-sm text-muted-foreground">
+              Point Botmarchy at a computer you own. It needs SSH access and Hermes installed; bots, memory, and
+              conversations live on that computer, reached over SSH — no cloud service involved.
+            </p>
+            <Input
+              autoFocus
+              disabled={busy}
+              onChange={event => setSelfhostTarget(event.target.value)}
+              placeholder="user@host — e.g. me@omarchy-1.tail9106ac.ts.net"
+              spellCheck={false}
+              value={selfhostTarget}
+            />
+            {(() => {
+              const parsed = parseSelfhostTarget(selfhostTarget)
+
+              if (parsed.target) {
+                const label = [parsed.target.user || 'default user', parsed.target.host, parsed.target.port ? `port ${parsed.target.port}` : ''].filter(Boolean).join(' · ')
+
+                return <p className="text-xs text-muted-foreground">Connecting as {label}</p>
+              }
+
+              if (parsed.error) {
+                return <p className="text-xs text-destructive">{parsed.error}</p>
+              }
+
+              return null
+            })()}
+            <button
+              className="justify-self-start text-xs text-muted-foreground underline"
+              disabled={busy}
+              onClick={() => setSelfhostAdvanced(current => !current)}
+              type="button"
+            >
+              {selfhostAdvanced ? 'Hide options' : 'Port, SSH key, custom Hermes path'}
+            </button>
+            {selfhostAdvanced ? (
+              <div className="grid gap-3 rounded-xl border border-border/70 p-3">
+                <label className="grid gap-1 text-xs text-muted-foreground">
+                  SSH port
+                  <Input
+                    disabled={busy}
+                    onChange={event => setSelfhostPort(event.target.value)}
+                    placeholder="22"
+                    value={selfhostPort}
+                  />
+                </label>
+                <label className="grid gap-1 text-xs text-muted-foreground">
+                  SSH key path (blank = default keys)
+                  <Input
+                    disabled={busy}
+                    onChange={event => setSelfhostKeyPath(event.target.value)}
+                    placeholder="~/.ssh/id_ed25519"
+                    value={selfhostKeyPath}
+                  />
+                </label>
+              </div>
+            ) : null}
+            {busy ? (
+              <div aria-live="polite" className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+                <Loader2 aria-hidden className="size-4 animate-spin" />
+                Connecting over SSH — finding Hermes, starting the dashboard…
+              </div>
+            ) : null}
+            <Button
+              aria-busy={busy}
+              disabled={busy || !parseSelfhostTarget(selfhostTarget).target}
+              onClick={() => void connectSelfhost()}
+            >
+              {busy ? 'Connecting…' : 'Connect'}
+            </Button>
+            <button
+              className="justify-self-start text-xs text-muted-foreground underline"
+              disabled={busy}
+              onClick={() => goToStep('orgo')}
+              type="button"
+            >
+              Back
+            </button>
           </div>
         ) : null}
         {setup.step === 'bot' ? (
