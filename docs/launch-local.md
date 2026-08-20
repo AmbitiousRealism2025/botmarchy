@@ -14,7 +14,7 @@ embedded node, not the system one.)
 Always launch through the wrapper that strips it:
 
 ```bash
-/tmp/korgo-dev-launch.sh        # logs to /tmp/korgo-dev.log
+scripts/dev/launch-local.sh (repo root)        # logs to /tmp/korgo-dev.log
 ```
 
 or inline:

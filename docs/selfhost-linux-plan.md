@@ -1,4 +1,4 @@
-# Korgo Bot self-hosted Linux port — working plan
+# Botmarchy self-hosted Linux port — working plan
 
 Goal: run the Korgo Bot desktop app on the ThinkPad (Arch/Omarchy) with the
 Hermes gateway hosted on the Kamrui mini-PC (Omarchy) over Tailscale.
@@ -52,7 +52,7 @@ Gotchas hit (and fixes):
 - bb exports `ELECTRON_RUN_AS_NODE=1`; inherited by nohup'd dev servers,
   making the Electron binary boot as plain Node (`BrowserWindow` import
   error, "Node.js v24.18.1" = Electron's embedded node). Fix: launch via
-  `/tmp/korgo-dev-launch.sh` which unsets it (see docs/launch-local.md).
+  `scripts/dev/launch-local.sh (repo root)` which unsets it (see docs/launch-local.md).
 - `install-stamp.json` ENOENT warnings in dev mode are benign (stamps only
   exist in packaged builds).
 
@@ -62,7 +62,7 @@ connect Codex provider, create 2 bots, verify memory across restart.
 ### Phase 1 UI test run — PASSED 2026-08-20 (via CDP, no manual steps)
 
 The dev app exposes a renderer debug port (`127.0.0.1:9222`), so the UI was
-driven programmatically with `scripts/dev/korgo-cdp.mjs` (screenshot / eval):
+driven programmatically with `scripts/dev/botmarchy-cdp.mjs` (screenshot / eval):
 
 1. ✅ App booted straight into an existing roster — local mode picked up
    the pre-existing `~/.hermes` profiles: 6 bots (Master Chief,
