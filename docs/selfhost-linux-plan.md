@@ -37,25 +37,36 @@ ThinkPad (Arch, Omarchy)          Mini-PC (Omarchy, upstairs)
   strictly superior except datacenter uptime; workload is gateway + SQLite,
   so this is a non-issue.
 
-## Phase 1 — local-mode run on the ThinkPad (prove the UI)
+## Phase 1 — local-mode run on the ThinkPad (prove the UI) — DONE 2026-08-20
 
-1. Relax the setup-script platform gate to allow Linux
-   (`scripts/setup-hermes-bots.sh`), audit the rest of the script for
-   mac-isms (keychain, open, brew).
-2. Root `npm install` (workspaces), then
-   `npm --workspace apps/desktop run dev:bot` — expect XWayland; try
-   `--ozone-platform=wayland` opportunistically.
-3. Onboard with "Use this Mac instead" → local mode; Hermes backend runs on
-   the ThinkPad itself.
-4. Connect a provider (Codex subscription, device flow).
-5. Fix Linux paper cuts as they surface (titlebar overlay, tray, packaging
-   stamp). Keep each fix a separate commit for clean rebases.
+Status: **app launches and runs natively on Arch/Hyprland.**
+
+Completed:
+1. ✅ Platform gate relaxed (`scripts/setup-hermes-bots.sh`), Darwin|Linux.
+2. ✅ `uv sync` (pinned 3.11 env) and root `npm ci` — clean, 0 vulns.
+3. ✅ `typecheck` passes on Linux.
+4. ✅ `dev:bot` launches; window maps on Hyprland (class `hermes`, title
+   "Korgo Bot", native Wayland via ELECTRON_OZONE_PLATFORM_HINT).
+
+Gotchas hit (and fixes):
+- bb exports `ELECTRON_RUN_AS_NODE=1`; inherited by nohup'd dev servers,
+  making the Electron binary boot as plain Node (`BrowserWindow` import
+  error, "Node.js v24.18.1" = Electron's embedded node). Fix: launch via
+  `/tmp/korgo-dev-launch.sh` which unsets it (see docs/launch-local.md).
+- `install-stamp.json` ENOENT warnings in dev mode are benign (stamps only
+  exist in packaged builds).
+
+Remaining (interactive, user): onboarding via "Use this Mac instead",
+connect Codex provider, create 2 bots, verify memory across restart.
 
 Exit criteria: create 2 bots, group chat with @mentions, verify persistent
 memory across app restarts.
 
 ## Phase 2 — gateway on the mini-PC (replace Orgo)
 
+See `docs/mini-pc-setup.md` for the box-side checklist (verified: install.sh
+is Arch-aware, `--commit` pins to korgo's ref, root FHS layout mirrors the
+Orgo VM).
 1. Prep the mini-PC (Omarchy):
    - Install Hermes via upstream NousResearch `install.sh` if it supports
      Arch; otherwise `uv` + pinned checkout of `ad9e8c9b…` (the ref korgo
