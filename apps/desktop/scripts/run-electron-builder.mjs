@@ -48,7 +48,7 @@ if (dist && fs.existsSync(distBinary(dist))) {
 }
 if (process.env.HERMES_DESKTOP_PRODUCT === 'bot') {
   args.push(
-    '-c.appId=com.nousresearch.hermes-bots',
+    '-c.appId=dev.botmarchy.Botmarchy',
     '-c.productName=Botmarchy',
     '-c.executableName=Botmarchy',
     '-c.artifactName=Botmarchy-${version}-${os}-${arch}.${ext}',
