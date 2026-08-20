@@ -210,3 +210,6 @@ native/fts5_cjk/*.so
 
 # Local development planning docs (Botmarchy)
 dev-plans/
+
+# Local peer-review artifacts (Botmarchy)
+peer-reviews/
