@@ -141,12 +141,22 @@ def main() -> int:
     bots = [summarize_profile(i.name, Path(i.path)) for i in infos]
     bots.sort(key=lambda b: (not b["working"], -(b["last_activity"] or 0)))
 
-    print(
-        json.dumps(
-            {"generated": time.time(), "gateway": {"running": gateway_running()}, "bots": bots},
-            separators=(",", ":"),
-        )
+    payload = json.dumps(
+        {"generated": time.time(), "gateway": {"running": gateway_running()}, "bots": bots},
+        separators=(",", ":"),
     )
+
+    # Invocation marker for the bar widget's poll (debug/verification).
+    # Atomic: tmp + replace, so a killed process can't leave it truncated.
+    try:
+        marker = Path.home() / ".cache" / "botmarchy-muster-last-run"
+        tmp = marker.with_suffix(".tmp")
+        tmp.write_text(str(time.time()) + "\n")
+        os.replace(tmp, marker)
+    except OSError:
+        pass
+
+    print(payload)
     return 0
 
 
