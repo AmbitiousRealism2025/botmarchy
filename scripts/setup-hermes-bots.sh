@@ -20,7 +20,7 @@ Options:
   -h, --help  Show this help.
 
 Prerequisites:
-  macOS, Git, Node.js 22.22+, npm, and uv.
+  macOS or Linux, Git, Node.js 22.22+, npm, and uv.
 EOF
 }
 
@@ -45,10 +45,13 @@ while (($# > 0)); do
   shift
 done
 
-if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "Korgo Bot currently supports source use on macOS." >&2
-  exit 1
-fi
+case "$(uname -s)" in
+  Darwin|Linux) ;;
+  *)
+    echo "Korgo Bot currently supports source use on macOS and Linux." >&2
+    exit 1
+    ;;
+esac
 
 for command_name in git node npm uv uvx; do
   if ! command -v "$command_name" >/dev/null 2>&1; then
