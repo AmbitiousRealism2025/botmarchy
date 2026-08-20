@@ -27,57 +27,53 @@ From the ThinkPad: `ssh-copy-id <user>@<mini-pc-tailscale-name>` and verify
 passwordless login. (Alternative: Tailscale SSH via `tailscale up --ssh` —
 fine too; our Phase 2 patch takes an explicit user/host/port either way.)
 
-## 2. Install Hermes pinned to korgo's ref (10–15 min)
+## 2. Install Hermes pinned to korgo's ref (DONE 2026-08-20)
 
-Recommended: root FHS layout to mirror the Orgo VM exactly, which keeps our
-ThinkPad-side bootstrap patch at zero:
-
-```bash
-sudo curl -fsSL https://hermes-agent.nousresearch.com/install.sh \
-  | sudo bash -s -- --commit ad9e8c9b574ec6937cc09d8901ca83a769225963
-```
-
-(A user-local install under `~` also works if you'd rather avoid root; our
-patch would then point at the user paths instead. Root-FHS is chosen to
-minimize divergence from what the broker already knows how to drive.)
-
-## 3. Verify the install (1 min)
+Executed remotely from the ThinkPad over SSH (tailnet). User-local layout
+(no root needed): code at `~/.hermes/hermes-agent`, command at
+`~/.local/bin/hermes`, data under `~/.hermes`.
 
 ```bash
-hermes --version
-hermes serve --help | grep -E "ssh-session-token-file|ssh-owner-nonce"
+curl -fsSL https://hermes-agent.nousresearch.com/install.sh \
+  | bash -s -- --commit ad9e8c9b574ec6937cc09d8901ca83a769225963 --skip-setup
 ```
 
-Both flags must appear — that's the broker's compatibility gate.
+`uv` was missing and installed first (user-local via astral.sh installer).
+Verified: `Hermes Agent v0.20.1 (2026.8.13)` at the pinned ref; both
+compat flags (`ssh-session-token-file`, `ssh-owner-nonce`) present in
+`hermes serve --help`.
 
-## 4. Run the gateway at boot (5 min)
+Note: the host is `omarchy-1` (100.83.160.47), not the stale `mini-remote`
+node still visible in the tailnet.
 
-Create `/etc/systemd/system/hermes-gateway.service`:
+## 4. Run the gateway at boot (DONE, one sudo step pending)
 
+Important correction: `hermes serve` **refuses non-loopback binds** unless
+auth providers are configured, and its error message prescribes the intended
+architecture: bind 127.0.0.1 and tunnel in over SSH — which is exactly how
+korgo-bot reaches the Orgo VM. So the service binds loopback and the
+desktop app tunnels the websocket over Tailscale SSH.
+
+Service: `~/.config/systemd/user/hermes-gateway.service`
 ```ini
 [Unit]
 Description=Hermes gateway for Korgo Bot
 After=network-online.target
 
 [Service]
-ExecStart=/usr/local/bin/hermes serve
+Environment=PATH=/home/ambitiousrealism/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/ambitiousrealism/.local/bin/hermes serve --host 127.0.0.1 --port 9119
 Restart=on-failure
-# korgo's remote path supplies session-token flags at connect time
+RestartSec=5
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 ```
+State: active, listening on 127.0.0.1:9119, enabled at login.
 
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now hermes-gateway
-```
-
-Verify it's listening (default port 9119):
-
-```bash
-ss -tlnp | grep 9119
-```
+**Pending (user, once):** `sudo loginctl enable-linger ambitiousrealism` on
+omarchy-1 — otherwise the user service stops when the desktop session logs
+out. With linger, it survives logout and starts at boot.
 
 ## 5. Provider credentials
 
