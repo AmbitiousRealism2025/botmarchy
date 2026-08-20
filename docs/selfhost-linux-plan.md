@@ -102,7 +102,8 @@ it. What was done instead of patching:
 1. Box-side: Hermes v0.20.1 at pinned ref installed user-local
    (`~/.local/bin/hermes`), `hermes-gateway.service` (systemd --user,
    loopback:9119, linger on).
-2. ThinkPad-side: `~/.config/Korgo Bot/connection.json` set to
+2. ThinkPad-side: the app's userData `connection.json` (then `~/.config/Hermes
+   Bots/connection.json`, now `~/.config/Botmarchy/connection.json`) set to
    `{mode: ssh, remote: {host: omarchy-1.tail9106ac.ts.net, user,
    keyPath}}`, applied via the `hermes:connection-config:apply` IPC
    (`window.hermesDesktop.applyConnectionConfig`) from the renderer — same
@@ -112,6 +113,20 @@ call the Orgo flow makes.
    created after the switch inherit it.
 4. Verified end-to-end: bot creation, group + direct messages, replies
    rendered, tunnel auto-rebootstrap after remote dashboard restart.
+
+### Post-onboarding note (2026-08-20, commit 396e7fe+)
+
+Manual connection.json editing is **no longer required**: first-run setup
+now offers "Use my own computer", which verifies the host over SSH
+(`testConnectionConfig` with structured error codes) and applies the
+connection itself. The hand-edited-file route below remains as the
+historical record of how the prototype was proven.
+
+One-time migration for pre-rename installs: copy your previous user-data
+dir to the new one before first launch —
+`cp -r ~/.config/Hermes\ Bots ~/.config/Botmarchy` — carrying over
+`connection.json` (gateway/SSH settings), credentials, and window state.
+(`BOT_USER_DATA_DIRNAME` changed at fork time; pre-release break.)
 
 ### Gotchas found
 

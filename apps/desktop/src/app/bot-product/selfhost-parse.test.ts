@@ -31,6 +31,22 @@ describe('parseSelfhostTarget', () => {
     })
   })
 
+  it('accepts a bare IPv6 literal without port (normalizeSshConfig parity)', () => {
+    expect(parseSelfhostTarget('::1')).toEqual({ target: { host: '::1', user: '', port: null } })
+    expect(parseSelfhostTarget('fd7a:115c:a1e0::1')).toEqual({
+      target: { host: 'fd7a:115c:a1e0::1', user: '', port: null }
+    })
+    expect(parseSelfhostTarget('1:2:3:4:5:6:7:8')).toEqual({
+      target: { host: '1:2:3:4:5:6:7:8', user: '', port: null }
+    })
+  })
+
+  it('accepts an IPv6 zone id in brackets', () => {
+    expect(parseSelfhostTarget('[fe80::1%eth0]:2222')).toEqual({
+      target: { host: 'fe80::1%eth0', user: '', port: 2222 }
+    })
+  })
+
   it('parses bracketed IPv6 with port', () => {
     expect(parseSelfhostTarget('[fd7a:115c:a1e0::1]:2222')).toEqual({
       target: { host: 'fd7a:115c:a1e0::1', user: '', port: 2222 }
@@ -54,12 +70,34 @@ describe('parseSelfhostTarget', () => {
 
   it('rejects an invalid port', () => {
     expect(parseSelfhostTarget('host:abc').error).toBeTruthy()
+    expect(parseSelfhostTarget('host:').error).toBeTruthy()
     expect(parseSelfhostTarget('host:0').error).toBeTruthy()
     expect(parseSelfhostTarget('host:99999').error).toBeTruthy()
+    expect(parseSelfhostTarget('host:65536').error).toBeTruthy()
   })
 
-  it('rejects unbracketed IPv6 with colons', () => {
-    expect(parseSelfhostTarget('fd7a:115c:a1e0::1').error).toBeTruthy()
+  it('accepts port 65535', () => {
+    expect(parseSelfhostTarget('host:65535').target?.port).toBe(65535)
+  })
+
+  it('rejects malformed IPv6 literals', () => {
+    expect(parseSelfhostTarget('[:::]').error).toBeTruthy()
+    expect(parseSelfhostTarget('[1:2:3:4:5:6:7:8:9]').error).toBeTruthy() // 9 groups
+    expect(parseSelfhostTarget('[1:2:3:4:5:6:7:8::]').error).toBeTruthy() // 8 + compression
+    expect(parseSelfhostTarget('[1:2:3:4:5:6:7:8:9]:22').error).toBeTruthy()
+    expect(parseSelfhostTarget('[::g]').error).toBeTruthy()
+    expect(parseSelfhostTarget('[12345::]').error).toBeTruthy() // 5-digit group
+    expect(parseSelfhostTarget('[1::2::3]').error).toBeTruthy() // double compression
+  })
+
+  it('rejects malformed IPv6 in bare form', () => {
+    expect(parseSelfhostTarget('1:2:3::4::5').error).toBeTruthy()
+    expect(parseSelfhostTarget(':::').error).toBeTruthy()
+  })
+
+  it('rejects malformed bare multi-colon input that is not valid IPv6', () => {
+    expect(parseSelfhostTarget('1:2::3::4').error).toBeTruthy()
+    expect(parseSelfhostTarget('zz::1').error).toBeTruthy()
   })
 
   it('rejects invalid user names', () => {
@@ -71,6 +109,19 @@ describe('parseSelfhostTarget', () => {
     expect(parseSelfhostTarget('user@').error).toBeTruthy()
     expect(parseSelfhostTarget('bad host').error).toBeTruthy()
     expect(parseSelfhostTarget('host..name').error).toBeTruthy()
+    expect(parseSelfhostTarget('.host').error).toBeTruthy()
+    expect(parseSelfhostTarget('host.').error).toBeTruthy()
+  })
+
+  it('rejects invalid DNS labels (leading/trailing hyphens)', () => {
+    expect(parseSelfhostTarget('foo.-bar').error).toBeTruthy()
+    expect(parseSelfhostTarget('foo-.bar').error).toBeTruthy()
+    expect(parseSelfhostTarget('-foo.bar').error).toBeTruthy()
+    expect(parseSelfhostTarget('foo.bar-').error).toBeTruthy()
+  })
+
+  it('rejects multiple @ as a user-name problem', () => {
+    expect(parseSelfhostTarget('a@b@host').error).toBeTruthy()
   })
 
   it('accepts IPv4 with each octet in range only', () => {

@@ -151,7 +151,7 @@ def _safe_error_message(status: int, payload: Any) -> str:
                 break
 
     if status == 401:
-        return "Orgo rejected the configured API key. Reconnect Orgo in Korgo Bot settings."
+        return "Orgo rejected the configured API key. Reconnect Orgo in Botmarchy settings."
     if status == 402:
         return "The Orgo account has insufficient credits for this computer-use run."
     if status == 403:

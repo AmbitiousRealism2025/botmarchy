@@ -67,15 +67,9 @@ export function formatBotSetupError(error: unknown, fallback: string): string {
   return detail.length > 600 ? `${detail.slice(0, 600)}…` : detail || fallback
 }
 
-/**
- * Map self-hosted SSH connection failures (raised across bootstrapSshConnection
- * / remote-lifecycle, surfaced through the applyConnectionConfig IPC) to
- * actionable copy. The IPC rejection carries only the message string — custom
- * err.sshError fields do not survive the structured clone — so we match on
- * message text the way formatBotSetupError does for Orgo errors.
- */
 /** Structured sshError codes from testConnectionConfig (DesktopConnectionTestResult).
- * These are stable identifiers, not message text — map them to actionable copy. */
+ * These are stable identifiers, not message text — map them to actionable copy.
+ * This is the PRIMARY error path for the self-hosted Connect button. */
 const SELFHOST_TEST_ERRORS: Record<string, string> = {
   'auth-failed':
     'SSH rejected the login. Check the user name, and make sure your key is authorized on that computer (ssh-copy-id).',
@@ -104,11 +98,33 @@ function isValidAdvancedPort(raw: string): boolean {
   return /^\d+$/.test(trimmed) && Number(trimmed) >= 1 && Number(trimmed) <= 65535
 }
 
+/**
+ * Fallback formatter for self-hosted connect failures. The primary path is
+ * structured (SELFHOST_TEST_ERRORS ← testConnectionConfig's sshError codes);
+ * this only handles residual cases — an apply-time throw (post-verify) or a
+ * test result with an unmapped code. Matches the stable message prefixes
+ * that `sshErrorMessage` (electron/ssh-connection.ts) and remote-lifecycle
+ * actually generate; otherwise passes the upstream message through
+ * (truncated). Deliberately no broad /timed out/ branch: remote-dashboard
+ * ready-timeouts contain that phrase but are not network failures.
+ */
 export function formatSelfhostError(error: unknown, fallback: string): string {
   const detail =
     (error instanceof Error ? error.message : String(error || ''))
       .replace(/^Error invoking remote method '[^']+':\s*/i, '')
       .trim() || fallback
+
+  if (/^Could not reach .* over SSH/i.test(detail)) {
+    return 'Could not reach that computer. Check the address, port, and that it is online and reachable from this machine.'
+  }
+
+  if (/^The host key for .* has CHANGED/i.test(detail)) {
+    return 'That computer’s host key changed (often after a reinstall). Verify the change is expected, then clear the old entry with `ssh-keygen -R <host>` and try again.'
+  }
+
+  if (/^SSH authentication to .* failed/i.test(detail)) {
+    return 'SSH rejected the login. Check the user name, load passphrase keys into your ssh-agent, or authorize your key on that computer (ssh-copy-id).'
+  }
 
   if (/Hermes is not installed on the remote host/i.test(detail)) {
     return 'Hermes was not found on that computer. Install it with the pinned command from the Botmarchy README, then try again.'
@@ -118,20 +134,8 @@ export function formatSelfhostError(error: unknown, fallback: string): string {
     return 'The Hermes path set for this host is not executable. Check the path, or clear it to auto-detect.'
   }
 
-  if (/--ssh-session-token-file|does not support .*ssh-owner-nonce/i.test(detail)) {
+  if (/does not support --ssh-session-token-file/i.test(detail)) {
     return 'The Hermes on that computer is too old for desktop remote mode. Update it to the pinned Botmarchy release and try again.'
-  }
-
-  if (/Permission denied|auth-failed|Please make sure you have the correct access/i.test(detail)) {
-    return 'SSH rejected the login. Check the user name, and make sure your key is authorized on that computer (ssh-copy-id).'
-  }
-
-  if (/timed out|Connection timed out|unreachable|Network is unreachable|No route to host/i.test(detail)) {
-    return 'Could not reach that computer. Check the address, and that it is online and reachable from this machine (same tailnet or LAN).'
-  }
-
-  if (/REMOTE HOST IDENTIFICATION HAS CHANGED|host-key-changed/i.test(detail)) {
-    return 'That computer’s host key changed (often after a reinstall). Clear the old entry with `ssh-keygen -R <host>` and try again.'
   }
 
   if (/Could not resolve/i.test(detail)) {

@@ -19,6 +19,29 @@ any always-on machine on your tailnet becomes the bots' home. See
 [`docs/selfhost-linux-plan.md`](docs/selfhost-linux-plan.md) for the
 architecture and current status.
 
+## Connect your own computer
+
+Run a desktop build (`npm --workspace apps/desktop run dev:bot` from a
+checkout), then in first-run setup choose **Use my own computer** and enter
+`user@host` (port, SSH key, and a custom Hermes path are optional). The app
+verifies the computer over SSH before connecting — it needs:
+
+1. SSH reachable from this machine (tailnet or LAN), key-based login
+   (`ssh-copy-id user@host`)
+2. Hermes installed on that computer, pinned to the compatible ref:
+
+   ```bash
+   curl -fsSL https://hermes-agent.nousresearch.com/install.sh \
+     | bash -s -- --commit ad9e8c9b574ec6937cc09d8901ca83a769225963 --skip-setup
+   ```
+
+3. A provider credential on that computer (`hermes setup` there, or copy an
+   existing `~/.hermes/auth.json`)
+
+Bots, memory, and conversations live on that computer; the desktop connects
+over SSH (no cloud service, no exposed ports). Full runbook:
+[`docs/mini-pc-setup.md`](docs/mini-pc-setup.md).
+
 ---
 
 *The remainder of this README is inherited from upstream and describes the
@@ -78,7 +101,7 @@ cd hermes-bots
 
 Setup does not delete `~/.hermes`, create cloud resources, or save credentials. Those actions only occur after the app opens and you explicitly complete the first-run guide.
 
-The installed product keeps the stable bundle identifier and legacy `Hermes Bots` Application Support directory so existing users retain credentials, permissions, and local state across the Korgo Bot rebrand.
+The installed product keeps the stable bundle identifier and legacy `Hermes Bots` Application Support directory so existing users retain credentials, permissions, and local state across the Korgo Bot rebrand. *Botmarchy note: this fork changed both — appId `dev.botmarchy.Botmarchy`, user data `~/.config/Botmarchy` (pre-release break; see `docs/selfhost-linux-plan.md` for the one-time copy).*
 
 ### Build a local macOS app
 
@@ -101,7 +124,7 @@ The setup journey is:
 
 Paste your Orgo API key. Korgo Bot will:
 
-- create or reuse the current `Korgo Bot` workspace, including a legacy `Hermes Bots` workspace from an earlier build;
+- create or reuse the current `Korgo Bot` workspace (Botmarchy names it `Botmarchy`), including a legacy `Hermes Bots` workspace from an earlier build;
 - create or reuse the canonical shared computer, recovering safely from duplicate-name races;
 - pin compatibility to Orgo's `system/hermes-agent@1.0.0` template;
 - start the computer;

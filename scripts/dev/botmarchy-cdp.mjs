@@ -1,4 +1,4 @@
-// Drive/inspect the Korgo Bot renderer over CDP.
+// Drive/inspect the Botmarchy renderer over CDP.
 // Usage: node korgo-cdp.mjs screenshot [outfile]
 //        node korgo-cdp.mjs eval "<js expression>"
 import WebSocket from 'ws';
