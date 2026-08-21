@@ -182,6 +182,7 @@ import { loadNativeTokenSet, type NativeTokenStoreIo, persistNativeTokenSet } fr
 import { serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
 import { createOmarchyThemeService, type OmarchyGarnishTokens, omarchyThemePaths } from './omarchy-theme'
 import { osNotifyExecFor } from './os-notify'
+import { syncMusterTarget } from './muster-sync'
 import {
   beginOrgoTailscaleSetup,
   BOT_ORGO_LEGACY_WORKSPACE_NAME,
@@ -11202,6 +11203,14 @@ ipcMain.handle('hermes:connection-config:save', async (_event, payload) => {
 async function applyDesktopConnectionConfig(payload) {
   const config = coerceDesktopConnectionConfig(payload)
   writeDesktopConnectionConfig(config)
+
+  // Composite review P2.14: the bot SKU's SSH apply also updates the Muster
+  // bar plugin's target file so the bar follows the box Settings just
+  // chose (the plugin's own chain never learned about app-side changes).
+  // Global scope only — per-profile overrides are not the court's box.
+  if (!payload?.profile) {
+    syncMusterTarget(config)
+  }
 
   const key = connectionScopeKey(payload?.profile)
   const scope = key || ''
