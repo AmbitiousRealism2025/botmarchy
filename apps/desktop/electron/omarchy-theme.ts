@@ -46,13 +46,37 @@ export function parseOmarchyColorTable(stdout: string): Record<string, string> {
 const HEX_RE = /^#[0-9a-fA-F]{6}$/
 
 /** Relative luminance of a #rrggbb color (0–1). */
-function luminance(hex: string): number {
+function relativeLuminance(hex: string): number {
   const n = (i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255
-  // sRGB → linear, then Rec. 709 luma. Close enough for text contrast.
+  // sRGB → linear, then Rec. 709 luma.
   const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
   const [r, g, b] = [n(0), n(1), n(2)].map(lin)
 
   return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+/** WCAG 2.x contrast ratio between two #rrggbb colors. */
+function contrastRatio(a: string, b: string): number {
+  const la = relativeLuminance(a)
+  const lb = relativeLuminance(b)
+  const [hi, lo] = la >= lb ? [la, lb] : [lb, la]
+
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+// The two fixed foreground candidates — keep in sync with the duplicated
+// helper in src/app/bot-product/omarchy-theme.ts (separate tsconfigs).
+const FG_DARK = '#0d0d0e'
+const FG_LIGHT = '#fcfcfc'
+
+/** Contrast-derived foreground for text/icons on an accent fill: the fixed
+ *  candidate with the HIGHER ratio against the accent wins. Replaces an
+ *  earlier luminance-threshold pick, which flipped at mid-luminance accents
+ *  (#89b4fa chose near-white at 2.05:1 when near-black gives 9.23:1) and
+ *  trusted themes' selection_foreground (tuned for selection_background,
+ *  not for the accent) — review F3. */
+export function contrastForegroundFor(accent: string): string {
+  return contrastRatio(accent, FG_DARK) >= contrastRatio(accent, FG_LIGHT) ? FG_DARK : FG_LIGHT
 }
 
 /**
@@ -61,9 +85,13 @@ function luminance(hex: string): number {
  * `accent` is the semantic key every current theme defines. For robustness
  * against raw/legacy tables the fallback chain interleaves the semantic and
  * ANSI spellings of the same hues (mirroring omarchy-theme-color's alias
- * cascade: blue ≙ color4, magenta ≙ color5, foreground ≙ color7). Returns
- * null when nothing usable resolved — callers keep their previous/fallback
- * palette rather than painting an unvalidated string.
+ * cascade: blue ≙ color4, magenta ≙ color5, foreground ≙ color7). The
+ * contrast foreground is DERIVED from the validated accent (WCAG ratio
+ * comparison against fixed near-black/near-white candidates) — never taken
+ * from `selection_foreground`, which themes tune for their selection
+ * background, not for the accent (review F3). Returns null when nothing
+ * usable resolved — callers keep their previous/fallback palette rather than
+ * painting an unvalidated string.
  */
 export function pickOmarchyGarnishTokens(
   colors: Record<string, string>,
@@ -84,18 +112,7 @@ export function pickOmarchyGarnishTokens(
     return null
   }
 
-  // Themes pair their selection with a tuned foreground; trust it when valid,
-  // otherwise decide from the accent's own luminance.
-  const selectionForeground = colors.selection_foreground
-
-  const accentForeground =
-    typeof selectionForeground === 'string' && HEX_RE.test(selectionForeground)
-      ? selectionForeground
-      : luminance(accent) > 0.45
-        ? '#0d0d0e'
-        : '#fcfcfc'
-
-  return { accent, accentForeground, themeName }
+  return { accent, accentForeground: contrastForegroundFor(accent), themeName }
 }
 
 export interface OmarchyThemePaths {
@@ -229,6 +246,11 @@ export interface OmarchyThemeService {
  * Long-running garnish source: resolve at start, re-resolve on theme switches,
  * hand fresh tokens to `onUpdate` (which broadcasts to renderer windows).
  * Pure DI — main.ts supplies execFile/fs/electron primitives.
+ *
+ * Lifecycle (review F6): `start()` is idempotent (duplicate calls are
+ * no-ops) and a stopped service never restarts. Resolves carry a monotonic
+ * generation (review F4) so an overlapping slower resolve that completes
+ * late is discarded instead of broadcasting a stale accent.
  */
 export function createOmarchyThemeService(deps: {
   execFile: ExecFileLike
@@ -236,21 +258,27 @@ export function createOmarchyThemeService(deps: {
   exists: ExistsLike
   watch: WatchLike
   paths: OmarchyThemePaths
+  /** Watch debounce override (tests); defaults to 300ms. */
+  watchDebounceMs?: number
   log?: (message: string) => void
   onUpdate: (tokens: OmarchyGarnishTokens | null) => void
 }): OmarchyThemeService {
   let tokens: OmarchyGarnishTokens | null = null
   let watcher: { close: () => void } | null = null
   let stopped = false
+  let started = false
+  let resolveGeneration = 0
   let announcedUnavailable = false
 
   const resolve = () => {
-    if (stopped) {
+    if (stopped || !started) {
       return
     }
 
+    const generation = ++resolveGeneration
+
     resolveOmarchyThemeTokens(deps, next => {
-      if (stopped) {
+      if (stopped || !started || generation !== resolveGeneration) {
         return
       }
 
@@ -283,8 +311,18 @@ export function createOmarchyThemeService(deps: {
   return {
     getTokens: () => tokens,
     start: () => {
+      if (stopped || started) {
+        return
+      }
+
+      started = true
       resolve()
-      watcher = watchOmarchyThemeDir({ watch: deps.watch, paths: deps.paths, onTrigger: resolve })
+      watcher = watchOmarchyThemeDir({
+        watch: deps.watch,
+        paths: deps.paths,
+        debounceMs: deps.watchDebounceMs,
+        onTrigger: resolve
+      })
 
       if (!watcher) {
         deps.log?.('[omarchy-theme] watch unavailable — theme changes need an app restart')
@@ -292,6 +330,7 @@ export function createOmarchyThemeService(deps: {
     },
     stop: () => {
       stopped = true
+      started = false
       watcher?.close()
       watcher = null
     }

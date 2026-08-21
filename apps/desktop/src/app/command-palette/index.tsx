@@ -56,6 +56,7 @@ import {
   Wrench,
   Zap
 } from '@/lib/icons'
+import { isBotProduct } from '@/lib/product'
 import { allowsGenericHermesUpdates } from '@/lib/product'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
@@ -894,13 +895,18 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
             label: cc.changeTheme,
             to: 'theme'
           },
-          {
-            icon: Sun,
-            id: 'appearance-mode',
-            keywords: ['appearance', 'color mode', 'brightness', 'dark', 'light', 'system'],
-            label: cc.changeColorMode,
-            to: 'color-mode'
-          },
+          // Bot SKU is dark-only (charter principle 2): no color-mode entry.
+          ...(isBotProduct()
+            ? []
+            : [
+                {
+                  icon: Sun,
+                  id: 'appearance-mode',
+                  keywords: ['appearance', 'color mode', 'brightness', 'dark', 'light', 'system'],
+                  label: cc.changeColorMode,
+                  to: 'color-mode'
+                }
+              ]),
           {
             icon: PawPrint,
             id: 'appearance-pets',
@@ -1051,7 +1057,10 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
         run: () => {
           setTheme(theme.name)
 
-          if (!themeSupportsMode(theme.name, resolvedMode)) {
+          // Bot SKU: mode is pinned dark — never persist a mode flip for a
+          // light-only skin (which the picker hides, but search may still
+          // surface one resolved from storage).
+          if (!isBotProduct() && !themeSupportsMode(theme.name, resolvedMode)) {
             setMode(resolvedMode === 'dark' ? 'light' : 'dark')
           }
         }
@@ -1059,19 +1068,21 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
     })
 
     // Switch light/dark/system directly (typing "dark" shouldn't require the
-    // nested color-mode page).
-    result.push({
-      heading: t.settings.appearance.colorMode,
-      items: THEME_MODES.map(entry => ({
-        active: mode === entry.mode,
-        icon: entry.icon,
-        id: `search-mode-${entry.mode}`,
-        keepOpen: true,
-        keywords: ['appearance', 'color mode', 'brightness', entry.mode, t.settings.modeOptions[entry.mode].label],
-        label: t.settings.modeOptions[entry.mode].label,
-        run: () => setMode(entry.mode)
-      }))
-    })
+    // nested color-mode page). Dark-only bot SKU has no modes to switch.
+    if (!isBotProduct()) {
+      result.push({
+        heading: t.settings.appearance.colorMode,
+        items: THEME_MODES.map(entry => ({
+          active: mode === entry.mode,
+          icon: entry.icon,
+          id: `search-mode-${entry.mode}`,
+          keepOpen: true,
+          keywords: ['appearance', 'color mode', 'brightness', entry.mode, t.settings.modeOptions[entry.mode].label],
+          label: t.settings.modeOptions[entry.mode].label,
+          run: () => setMode(entry.mode)
+        }))
+      })
+    }
 
     if (sessions.length > 0) {
       result.push({
@@ -1186,7 +1197,8 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
           // Built-ins and imported families list under the mode(s) they support;
           // picking sets skin + mode at once. A multi-variant import (GitHub,
           // Solarized) appears in both groups and switches variants with the mode.
-          ...(['light', 'dark'] as const).map(groupMode => ({
+          // Dark-only bot SKU lists the Dark group only (review F5).
+          ...((isBotProduct() ? (['dark'] as const) : (['light', 'dark'] as const)).map(groupMode => ({
             heading: groupMode === 'light' ? t.settings.modeOptions.light.label : t.settings.modeOptions.dark.label,
             items: availableThemes
               .filter(theme => themeSupportsMode(theme.name, groupMode))
@@ -1199,29 +1211,36 @@ function CommandPaletteBody({ onExited }: { onExited: () => void }) {
                 label: theme.label,
                 run: () => {
                   setTheme(theme.name)
-                  setMode(groupMode)
+
+                  if (!isBotProduct()) {
+                    setMode(groupMode)
+                  }
                 }
               }))
-          }))
+          })))
         ]
       },
       'color-mode': {
         title: t.settings.appearance.colorMode,
         placeholder: t.settings.appearance.colorModeDesc,
-        groups: [
-          {
-            heading: t.settings.appearance.colorMode,
-            items: THEME_MODES.map(entry => ({
-              active: mode === entry.mode,
-              icon: entry.icon,
-              id: `mode-${entry.mode}`,
-              keepOpen: true,
-              keywords: ['appearance', 'brightness', t.settings.modeOptions[entry.mode].label],
-              label: t.settings.modeOptions[entry.mode].label,
-              run: () => setMode(entry.mode)
-            }))
-          }
-        ]
+        // Unreachable in the bot SKU (no palette entry links here) and empty
+        // by construction — dark-only product, no modes to switch.
+        groups: isBotProduct()
+          ? []
+          : [
+              {
+                heading: t.settings.appearance.colorMode,
+                items: THEME_MODES.map(entry => ({
+                  active: mode === entry.mode,
+                  icon: entry.icon,
+                  id: `mode-${entry.mode}`,
+                  keepOpen: true,
+                  keywords: ['appearance', 'brightness', t.settings.modeOptions[entry.mode].label],
+                  label: t.settings.modeOptions[entry.mode].label,
+                  run: () => setMode(entry.mode)
+                }))
+              }
+            ]
       },
       // Server-driven page: browse petdex gallery, adopt/switch, toggle off.
       pets: {

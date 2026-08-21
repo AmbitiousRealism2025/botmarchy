@@ -817,7 +817,10 @@ function writePersistedThemeSource(mode) {
   }
 }
 
-nativeTheme.themeSource = readPersistedThemeSource()
+// Bot SKU (charter principle 2, review F2): the native frame is dark from
+// process start — never resurrect a persisted light themeSource on the first
+// frame. The generic SKU keeps its persisted source unchanged.
+nativeTheme.themeSource = isBotProduct() ? 'dark' : readPersistedThemeSource()
 
 // Window translucency (see-through window). One lever, 0–100; 0 = off (the
 // default). Mapped to the native window opacity so the desktop shows through

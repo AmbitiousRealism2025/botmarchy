@@ -180,3 +180,54 @@ describe('resolveMode — SKU mode policy', () => {
     expect(resolveMode('dark')).toBe('dark')
   })
 })
+
+describe('dark-only invariant — light skins cannot repaint the bot SKU (review F1)', () => {
+  // A light-palette skin (VS Code light import shape: no darkColors, light
+  // base background). In the generic SKU this legitimately renders light.
+  const lightSkin = (foreground: string) => ({
+    name: 'bloomberg-light',
+    colors: { background: '#ffffff', ui_text: foreground, ui_accent: '#3366cc' }
+  })
+
+  beforeEach(() => {
+    window.localStorage.clear()
+    __resetBackendSkinSync()
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllEnvs()
+    __resetBackendSkinSync()
+  })
+
+  it('generic SKU still renders a light skin light (no regression)', () => {
+    render(
+      <ThemeProvider>
+        <div />
+      </ThemeProvider>
+    )
+
+    act(() => ingestBackendSkin(lightSkin('#111111'), { apply: true }))
+
+    expect(window.document.documentElement.dataset.hermesMode).toBe('light')
+    expect(window.document.documentElement.classList.contains('dark')).toBe(false)
+  })
+
+  it('bot SKU keeps the fixed dark surface under a light skin', () => {
+    vi.stubEnv('VITE_HERMES_DESKTOP_PRODUCT', 'bot')
+
+    render(
+      <ThemeProvider>
+        <div />
+      </ThemeProvider>
+    )
+
+    act(() => ingestBackendSkin(lightSkin('#111111'), { apply: true }))
+
+    expect(window.document.documentElement.dataset.hermesMode).toBe('dark')
+    expect(window.document.documentElement.classList.contains('dark')).toBe(true)
+    // The light palette was substituted with the default dark surface
+    // palette (orgo black), not merely relabeled.
+    expect(cssVar('--theme-background-seed')).toBe('#070707')
+  })
+})

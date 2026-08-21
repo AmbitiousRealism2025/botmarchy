@@ -15,9 +15,20 @@
       // UA-default white page, and the real theme only lands once the whole
       // module graph has executed — i.e. the "white flash" on every new
       // window. applyTheme() in src/themes/context.tsx keeps these keys fresh.
+      //
+      // Bot SKU is dark-only (charter principle 2): the stored keys are
+      // IGNORED and the first frame is always the fixed dark base, so a stale
+      // light value (pre-fork session, older build) can never flash. Vite
+      // replaces %VITE_HERMES_DESKTOP_PRODUCT% at build/serve time; in generic
+      // builds the var is undefined and the literal never equals 'bot'.
       try {
-        let bg = localStorage.getItem('hermes-boot-background')
-        let scheme = localStorage.getItem('hermes-boot-color-scheme')
+        const product = '%VITE_HERMES_DESKTOP_PRODUCT%'
+        let bg = null
+        let scheme = null
+        if (product !== 'bot') {
+          bg = localStorage.getItem('hermes-boot-background')
+          scheme = localStorage.getItem('hermes-boot-color-scheme')
+        }
         if (!bg) {
           bg = '#070707'
           scheme = 'dark'

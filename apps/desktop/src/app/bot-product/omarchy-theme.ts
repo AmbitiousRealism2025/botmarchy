@@ -31,12 +31,41 @@ export const FALLBACK_GARNISH: OmarchyGarnishTokens = {
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/
 
+function relativeLuminance(hex: string): number {
+  const n = (i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16) / 255
+  const lin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+  const [r, g, b] = [n(0), n(1), n(2)].map(lin)
+
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+function contrastRatio(a: string, b: string): number {
+  const la = relativeLuminance(a)
+  const lb = relativeLuminance(b)
+  const [hi, lo] = la >= lb ? [la, lb] : [lb, la]
+
+  return (hi + 0.05) / (lo + 0.05)
+}
+
+// Keep in sync with the duplicated helper in electron/omarchy-theme.ts
+// (separate tsconfigs — see review F3).
+const FG_DARK = '#0d0d0e'
+const FG_LIGHT = '#fcfcfc'
+
+/** Contrast-derived foreground for the accent — same math as the main
+ *  process picker, applied at the IPC trust boundary to REPAIR an absent or
+ *  invalid incoming pair (never trust a stale/foreign foreground). */
+export function contrastForegroundFor(accent: string): string {
+  return contrastRatio(accent, FG_DARK) >= contrastRatio(accent, FG_LIGHT) ? FG_DARK : FG_LIGHT
+}
+
 /** Garnish-level application: raw tokens + the derived overrides. The derived
- *  set is deliberately tiny — everything else keeps the fixed dark palette. */
+ *  set is deliberately tiny — everything else keeps the fixed dark palette.
+ *  themeName stays in module state only (never a CSS custom property — no
+ *  consumer, and unsanitized text has no business in the CSSOM; review F7). */
 const GARNISH_RAW: Record<string, (t: OmarchyGarnishTokens) => string> = {
   '--botmarchy-accent': t => t.accent,
-  '--botmarchy-accent-foreground': t => t.accentForeground,
-  '--botmarchy-theme-name': t => t.themeName
+  '--botmarchy-accent-foreground': t => t.accentForeground
 }
 
 const GARNISH_DERIVED: Record<string, string> = {
@@ -52,12 +81,14 @@ const GARNISH_DERIVED: Record<string, string> = {
   '--ui-control-active-background': 'color-mix(in srgb, var(--botmarchy-accent) 16%, transparent)'
 }
 
-export const GARNISH_PROPERTY_COUNT = Object.keys(GARNISH_RAW).length + Object.keys(GARNISH_DERIVED).length
+export const GARNISH_PROPERTIES = [...Object.keys(GARNISH_RAW), ...Object.keys(GARNISH_DERIVED)]
 
 let current: OmarchyGarnishTokens = FALLBACK_GARNISH
 let bridgeStarted = false
 
-/** Validate untrusted (IPC-origin) tokens; null when they'd paint garbage. */
+/** Validate untrusted (IPC-origin) tokens; null when they'd paint garbage.
+ *  An absent/invalid accentForeground is REPAIRED from the accent (contrast
+ *  math) rather than trusted or defaulted to one fixed color (review F3). */
 export function sanitizeOmarchyGarnishTokens(input: unknown): OmarchyGarnishTokens | null {
   if (!input || typeof input !== 'object') {
     return null
@@ -74,7 +105,7 @@ export function sanitizeOmarchyGarnishTokens(input: unknown): OmarchyGarnishToke
     accentForeground:
       typeof accentForeground === 'string' && HEX_RE.test(accentForeground)
         ? accentForeground
-        : FALLBACK_GARNISH.accentForeground,
+        : contrastForegroundFor(accent),
     themeName: typeof themeName === 'string' && themeName ? themeName : 'Omarchy'
   }
 }

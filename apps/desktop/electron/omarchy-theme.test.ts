@@ -51,12 +51,15 @@ test('parseOmarchyColorTable ignores blank and malformed lines', () => {
   assert.deepEqual(Object.keys(colors), ['accent'])
 })
 
-test('pickOmarchyGarnishTokens takes the semantic accent and its tuned contrast pair', () => {
+test('pickOmarchyGarnishTokens takes the semantic accent and DERIVES its contrast foreground', () => {
   const tokens = pickOmarchyGarnishTokens(parseOmarchyColorTable(AETHER_TABLE), 'Aether')
 
   assert.ok(tokens)
   assert.equal(tokens.accent, '#8d5312')
-  assert.equal(tokens.accentForeground, '#050A13')
+  // #8d5312's selection_foreground (#050A13) is tuned for the selection
+  // background, not the accent (3.19:1). The derived near-white candidate
+  // is the higher-ratio choice — review F3.
+  assert.equal(tokens.accentForeground, '#fcfcfc')
   assert.equal(tokens.themeName, 'Aether')
 })
 
@@ -73,9 +76,13 @@ test('pickOmarchyGarnishTokens falls back blue → magenta → foreground for AN
   assert.equal(last?.accent, '#cdd6f4')
 })
 
-test('pickOmarchyGarnishTokens picks contrast from luminance when the theme has no selection pair', () => {
-  // Bright accent → dark text; near-black accent → light text.
+test('pickOmarchyGarnishTokens derives the higher-ratio foreground across the luminance range', () => {
+  // Bright accent → dark text; near-black accent → light text; and the
+  // mid-luminance case the old threshold flipped on: #89b4fa is near-white
+  // at 2.05:1 but near-black at 9.23:1 (review F3).
   assert.equal(pickOmarchyGarnishTokens({ accent: '#ffd24a' }, 'T')?.accentForeground, '#0d0d0e')
+  assert.equal(pickOmarchyGarnishTokens({ accent: '#89b4fa' }, 'T')?.accentForeground, '#0d0d0e')
+  assert.equal(pickOmarchyGarnishTokens({ accent: '#8d5312' }, 'T')?.accentForeground, '#fcfcfc')
   assert.equal(pickOmarchyGarnishTokens({ accent: '#101014' }, 'T')?.accentForeground, '#fcfcfc')
 })
 
@@ -189,11 +196,12 @@ test('watchOmarchyThemeDir survives an unwatchable directory', () => {
   assert.equal(watcher, null)
 })
 
-test('createOmarchyThemeService: resolve → broadcast, swap → rebroadcast, miss → keep last', () => {
+test('createOmarchyThemeService: resolve → broadcast, swap → rebroadcast, miss → keep last', async () => {
   const updates: Array<{ accent: string } | null> = []
   const logs: string[] = []
   let table = AETHER_TABLE
   let fail = false
+  let watchListener: ((event: string, filename: string | null) => void) | null = null
 
   const service = createOmarchyThemeService({
     execFile: (_f, _a, _o, cb) => {
@@ -205,8 +213,13 @@ test('createOmarchyThemeService: resolve → broadcast, swap → rebroadcast, mi
     },
     readFile: () => 'aether\n',
     exists: () => true,
-    watch: () => ({ close: () => undefined }),
+    watch: (_dir, l) => {
+      watchListener = l
+
+      return { close: () => undefined }
+    },
     paths,
+    watchDebounceMs: 0,
     log: message => logs.push(message),
     onUpdate: tokens => updates.push(tokens ? { accent: tokens.accent } : null)
   })
@@ -216,18 +229,89 @@ test('createOmarchyThemeService: resolve → broadcast, swap → rebroadcast, mi
   assert.deepEqual(updates, [{ accent: '#8d5312' }], 'start resolves and broadcasts once')
   assert.ok(logs.some(l => l.includes('aether')), 'the active theme is logged')
 
-  // Theme switch: new accent broadcast; the transient miss between the two
-  // (mid-swap watch tick, resolver unavailable) keeps the last good palette
-  // instead of blanking the garnish.
+  // Re-resolves fire through the watch listener (the real trigger), never by
+  // re-calling start() — which is now a no-op after the first call. The
+  // watcher debounces via setTimeout, so each swap needs a tick.
+  const swap = async () => {
+    watchListener?.('rename', 'theme')
+    await new Promise(resolve => setTimeout(resolve, 5))
+  }
+
   fail = true
-  service.start()
-  assert.deepEqual(updates, [{ accent: '#8d5312' }], 'failed re-resolve keeps last tokens')
+  await swap()
+  assert.deepEqual(updates, [{ accent: '#8d5312' }], 'failed re-resolve (mid-swap) keeps last tokens')
 
   table = 'accent\t#89b4fa\nselection_foreground\t#cdd6f4\n'
   fail = false
+  await swap()
+  assert.deepEqual(updates, [{ accent: '#8d5312' }, { accent: '#89b4fa' }])
+})
+
+test('createOmarchyThemeService discards an overlapping resolve that completes late', async () => {
+  // Deferred execFile callbacks let us complete resolves out of order:
+  // resolve A (slow, old accent) must NOT overwrite resolve B (newer).
+  const pending: Array<(err: Error | null, stdout: string) => void> = []
+  const updates: Array<string | null> = []
+  let watchListener: ((event: string, filename: string | null) => void) | null = null
+
+  const service = createOmarchyThemeService({
+    execFile: (_f, _a, _o, cb) => pending.push(cb),
+    readFile: () => 't\n',
+    exists: () => true,
+    watch: (_dir, l) => {
+      watchListener = l
+
+      return { close: () => undefined }
+    },
+    paths,
+    watchDebounceMs: 0,
+    onUpdate: tokens => updates.push(tokens?.accent ?? null)
+  })
+
+  service.start() // resolve A enqueued
+  watchListener?.('rename', 'theme') // resolve B enqueued (after the debounce tick)
+  await new Promise(resolve => setTimeout(resolve, 5))
+
+  assert.equal(pending.length, 2)
+  assert.deepEqual(updates, [], 'nothing broadcast until a callback lands')
+
+  // B (newer) completes FIRST, then A (older/slower) lands late.
+  pending[1](null, 'accent\t#89b4fa\n')
+  pending[0](null, 'accent\t#8d5312\n')
+
+  assert.deepEqual(updates, ['#89b4fa'], 'the stale late resolve is discarded (review F4)')
+})
+
+test('createOmarchyThemeService lifecycle: start is idempotent, stop kills watchers and work', async () => {
+  const pending: Array<(err: Error | null, stdout: string) => void> = []
+  let watches = 0
+  let closed = 0
+
+  const service = createOmarchyThemeService({
+    execFile: (_f, _a, _o, cb) => pending.push(cb),
+    readFile: () => 't\n',
+    exists: () => true,
+    watch: () => {
+      watches++
+
+      return { close: () => closed++ }
+    },
+    paths,
+    onUpdate: () => undefined
+  })
+
   service.start()
-  assert.deepEqual(updates, [
-    { accent: '#8d5312' },
-    { accent: '#89b4fa' }
-  ])
+  service.start() // duplicate — must not leak a second watcher
+  assert.equal(watches, 1, 'duplicate start creates no second watcher')
+
+  service.stop()
+  assert.equal(closed, 1)
+
+  // After stop: a late resolve callback is discarded, and restart is refused.
+  service.start()
+  assert.equal(watches, 1, 'a stopped service never restarts')
+
+  pending[0](null, AETHER_TABLE)
+  await new Promise(resolve => setTimeout(resolve, 0))
+  assert.equal(service.getTokens(), null, 'stop() discards in-flight resolve work')
 })

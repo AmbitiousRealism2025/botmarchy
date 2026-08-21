@@ -6,6 +6,7 @@
 // add a hotkey, add a row here and a handler there — nothing else.
 
 import { registry } from '@/contrib/registry'
+import { isBotProduct } from '@/lib/product'
 
 import { IS_MAC } from './combo'
 
@@ -52,7 +53,13 @@ const SESSION_SLOT_ACTIONS: KeybindActionMeta[] = Array.from({ length: SESSION_S
   defaults: [`ctrl+${i + 1}`]
 }))
 
-export const KEYBIND_ACTIONS: readonly KeybindActionMeta[] = [
+// Keybinds the dark-only bot SKU does not ship (charter principle 2, review
+// F5): the light/dark toggle has no modes to switch, and registering the
+// metadata would show a dead, rebindable binding in the hotkey panel.
+const SKU_HIDDEN_ACTIONS = new Set(isBotProduct() ? ['appearance.toggleMode'] : [])
+
+export const KEYBIND_ACTIONS: readonly KeybindActionMeta[] = (
+  [
   // ── Composer ─────────────────────────────────────────────────────────────
   // Soft `/` / Enter focus (gated); other printables type-to-focus unbound.
   { id: 'composer.focus', category: 'composer', defaults: ['/', 'enter'] },
@@ -157,7 +164,8 @@ export const KEYBIND_ACTIONS: readonly KeybindActionMeta[] = [
   { id: 'view.findPrevious', category: 'view', defaults: [] },
   { id: 'appearance.toggleMode', category: 'view', defaults: ['shift+x'] },
   { id: 'keybinds.openPanel', category: 'view', defaults: ['mod+/'] }
-]
+] as const
+).filter(action => !SKU_HIDDEN_ACTIONS.has(action.id))
 
 export const KEYBIND_ACTION_IDS: readonly string[] = KEYBIND_ACTIONS.map(action => action.id)
 

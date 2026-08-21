@@ -150,24 +150,62 @@ export function getBaseColors(skinName: string, mode: 'light' | 'dark'): Desktop
   return seed.darkColors ? seed.colors : synthLightColors(seed)
 }
 
+/** Is this palette's background light? (Same luminance family as
+ *  renderedModeFor — used by the bot SKU's dark-only invariant, review F1.) */
+function isLightSurface(colors: DesktopThemeColors): boolean {
+  const rgb = hexToRgb(colors.background)
+
+  if (!rgb) {
+    return false
+  }
+
+  const [r, g, b] = rgb.map(v => v / 255)
+
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.5
+}
+
+/** Does this skin render LIGHT even in dark mode (no darkColors, light base
+ *  palette — e.g. a VS Code light import)? Hidden from the bot SKU's picker. */
+function isLightOnlySkin(name: string): boolean {
+  return isLightSurface(getBaseColors(name, 'dark'))
+}
+
 function deriveTheme(skinName: string, mode: 'light' | 'dark'): DesktopTheme {
   const seed = resolveTheme(skinName) ?? orgoTheme
+  let colors = getBaseColors(skinName, mode)
+
+  // Bot SKU dark-only invariant (charter principle 2, review F1): a
+  // light-palette skin (VS Code light import, backend skin sync, /skin) must
+  // never repaint the app light. resolveMode already pins the requested mode
+  // to dark, but a skin with no darkColors whose base palette is light would
+  // flow straight through — fall back to the default dark surface palette.
+  // Garnish (the Omarchy accent) still applies on top.
+  if (isBotProduct() && isLightSurface(colors)) {
+    colors = getBaseColors(DEFAULT_SKIN_NAME, 'dark')
+  }
 
   return {
     ...seed,
     name: `${skinName}-${mode}`,
     label: `${seed.label} ${mode === 'light' ? 'Light' : 'Dark'}`,
     description: `${seed.label} ${mode} palette`,
-    colors: getBaseColors(skinName, mode)
+    colors
   }
 }
 
 /**
  * Some palettes intentionally keep a bright background even when
  * `mode === 'dark'`, so we shouldn't apply the `.dark` class. Decide from
- * the actual background luminance.
+ * the actual background luminance — except in the bot SKU, which is
+ * dark-only by charter: its rendered mode is pinned dark regardless (review
+ * F1 belt-and-suspenders for non-hex backgrounds the luminance check can't
+ * classify).
  */
 function renderedModeFor(colors: DesktopThemeColors, mode: 'light' | 'dark'): 'light' | 'dark' {
+  if (isBotProduct()) {
+    return 'dark'
+  }
+
   const rgb = hexToRgb(colors.background)
 
   if (!rgb) {
@@ -564,11 +602,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const availableThemes = useMemo(
     () =>
-      listAllThemes().map(({ name, label, description }) => ({
-        name,
-        label,
-        description
-      })),
+      listAllThemes()
+        // Bot SKU (charter principle 2, review F1/F5): light-only skins are
+        // hidden — selecting one would either flip the rendered mode light
+        // (the bug this guards) or render as the default-dark fallback.
+        .filter(({ name }) => !isBotProduct() || !isLightOnlySkin(name))
+        .map(({ name, label, description }) => ({
+          name,
+          label,
+          description
+        })),
     // userThemes + backendThemes + registryVersion ARE listAllThemes' reactivity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [userThemes, backendThemes, registryVersion]
