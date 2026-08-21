@@ -23,7 +23,7 @@ import { ListRow, SectionHeading, SettingsContent } from './primitives'
 import { UninstallSection } from './uninstall-section'
 
 const HERMES_RELEASE_NOTES_URL = 'https://github.com/NousResearch/hermes-agent/releases'
-const BOT_RELEASE_NOTES_URL = 'https://github.com/nickvasilescu/hermes-bots/releases'
+const BOT_RELEASE_NOTES_URL = 'https://github.com/AmbitiousRealism2025/botmarchy/releases'
 
 function relativeTime(ms: number | undefined, a: Translations['settings']['about']) {
   if (!ms) {
@@ -133,7 +133,7 @@ export function AboutSettings() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {genericUpdates
                   ? `${a.lastChecked(relativeTime(status?.fetchedAt, a))}${justChecked && !checking ? a.justNowSuffix : ''}`
-                  : 'Install a new release DMG only after its compatibility with your cloud runtime is verified.'}
+                  : 'Install a new release only after its compatibility with your gateway is verified.'}
               </p>
             </div>
           </div>

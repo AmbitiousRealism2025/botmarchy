@@ -986,7 +986,7 @@ function DeleteGroupDialog({ group, open, onClose }) {
           children: [
             jsx(DialogTitle, { children: 'Delete this group chat?' }),
             jsx(DialogDescription, {
-              children: `${group.title || 'This group'} is only a conversation on this Mac. The bots themselves stay. You can start a new group with them later.`
+              children: `${group.title || 'This group'} is only a conversation on this machine. The bots themselves stay. You can start a new group with them later.`
             })
           ]
         }),
