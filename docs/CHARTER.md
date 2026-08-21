@@ -84,6 +84,25 @@ desktop is ever wired (e.g. wayvnc).
 - **Working cadence:** feature branch `linux-port` is the living branch
   until v0.1.0, at which point it becomes `main`.
 
+## Strategic posture — Omarchy exclusivity is a feature (2026-08-21)
+
+Botmarchy and Muster are made for Omarchy users, full stop. We harden that
+exclusivity rather than hedge it: where being Omarchy-only simplifies the
+product (packaging, theming, keybind grammar, distribution), we take the
+simplification and sharpen the positioning. "Made for Omarchy" is a
+differentiator in itself.
+
+Context for this decision: the Omacom Foundation launched Aug 2026 with $8M
+and eight founding patrons to fund, promote, and hold the trademarks of the
+Omarchy ecosystem precisely as Quattro's plugin architecture opens the
+desktop to native app makers — the community plugin catalog is nascent, and
+the position of flagship Omarchy-native agent product is unclaimed. After
+the Muster MVP lands, a dedicated exploration (see the task board) maps
+deep Omarchy integrations nobody else has shipped — candidates already
+identified: the `shell` IPC target (summon/call), service-kind plugins,
+plugin-to-plugin RPC, the first-party `omarchy.agents` widget surface, and
+menu/overlay plugin kinds.
+
 ## Versioning
 
 - `v0.1.0` — first release cut: fork executed, Orgo UI removed, wizard
