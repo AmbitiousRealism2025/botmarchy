@@ -37,7 +37,7 @@ const { MockRfb, rfbInstances } = vi.hoisted(() => {
 
 vi.mock('@novnc/novnc', () => ({ default: MockRfb }))
 
-import { OrgoDesktopPane } from './index'
+import { OrgoDesktopPane } from './computer-viewer'
 
 const SESSION: DesktopOrgoSessionResult = {
   ok: true,

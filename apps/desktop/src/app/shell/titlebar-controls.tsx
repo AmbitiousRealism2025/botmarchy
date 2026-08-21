@@ -21,7 +21,7 @@ import {
   toggleSidebarOpen
 } from '@/store/layout'
 
-import { $orgoDesktopOpen, requestOrgoDesktopSettings, setOrgoDesktopOpen } from '../right-sidebar/store'
+import { $orgoDesktopOpen, setOrgoDesktopOpen } from '../right-sidebar/store'
 import { appViewForPath, isOverlayView } from '../routes'
 
 import {
@@ -217,24 +217,13 @@ export function TitlebarControls({ leftTools = [], tools = [], onOpenSettings }:
       onSelect: toggleHaptics
     },
     {
-      // The gear configures the COMPUTER. It used to open app settings while a
-      // second cog under the screen configured the computer — two gears, one
-      // of them redundant. App settings stays reachable from the command
-      // palette and the /settings route.
-      actionId: 'nav.settings',
-      icon: <TitlebarIcon name="settings-gear" />,
-      id: 'settings',
-      label: 'Configure computer',
-      onSelect: () => {
-        triggerHaptic('open')
-        requestOrgoDesktopSettings()
-      }
-    },
-    {
+      // Opens/closes the routines rail (the bot product's right rail: agent
+      // cron jobs). The Orgo Computer drawer this button used to toggle is
+      // gone (BOT-3); the rail itself stays.
       active: orgoDesktopOpen,
-      icon: <TitlebarIcon name={orgoDesktopOpen ? 'vm-running' : 'vm-outline'} />,
-      id: 'computer',
-      label: orgoDesktopOpen ? t.titlebar.hideComputer : t.titlebar.showComputer,
+      icon: <TitlebarIcon name="clock" />,
+      id: 'routines',
+      label: orgoDesktopOpen ? t.titlebar.hideRoutines : t.titlebar.showRoutines,
       onSelect: () => {
         triggerHaptic(orgoDesktopOpen ? 'tap' : 'open')
         setOrgoDesktopOpen(!orgoDesktopOpen)

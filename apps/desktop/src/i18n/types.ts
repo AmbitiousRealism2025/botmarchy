@@ -240,8 +240,8 @@ export interface Translations {
     swapSidebarSides: string
     hideRightSidebar: string
     showRightSidebar: string
-    showComputer: string
-    hideComputer: string
+    showRoutines: string
+    hideRoutines: string
     muteHaptics: string
     unmuteHaptics: string
     openSettings: string

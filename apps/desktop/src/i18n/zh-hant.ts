@@ -193,6 +193,8 @@ export const zhHant = defineLocale({
     swapSidebarSides: '交換側邊欄位置',
     hideRightSidebar: '隱藏右側邊欄',
     showRightSidebar: '顯示右側邊欄',
+    showRoutines: '顯示例程',
+    hideRoutines: '隱示例程',
     muteHaptics: '靜音觸感回饋',
     unmuteHaptics: '開啟觸感回饋',
     openSettings: '開啟設定',
