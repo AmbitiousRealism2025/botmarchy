@@ -42,12 +42,35 @@ Bots, memory, and conversations live on that computer; the desktop connects
 over SSH (no cloud service, no exposed ports). Full runbook:
 [`docs/mini-pc-setup.md`](docs/mini-pc-setup.md).
 
+## Lineage
+
+**Botmarchy is an independent hard fork.** It forked from
+[Korgo Bot](https://github.com/nickvasilescu/korgo-bot) by Nick Vasilescu
+(tag [`v0.1.0-base`](../../releases) marks the fork point), which is itself
+a fork of [Hermes Agent](https://github.com/NousResearch/hermes-agent) by
+Nous Research.
+
+- **korgo-bot — hard fork.** Product directions have diverged: korgo is an
+  Orgo front-end; Botmarchy is local-only. korgo work is
+  cherry-pick-on-demand, never automatic merge.
+- **hermes-agent — soft tracking, optional.** The load-bearing code — SSH
+  remote mode, gateway client, Electron shell, the Python runtime — is
+  Nous's. We periodically review and merge or cherry-pick security and
+  correctness work from upstream Hermes. Never run a generic
+  `hermes update` against a Botmarchy install; remote runtimes stay pinned
+  to the compatible ref.
+
+Attribution is permanent: MIT license retained, `NOTICE.md` credits both
+lineages. Botmarchy is independent and not endorsed by or affiliated with
+Nous Research, Nick Vasilescu, or any third-party service. The fork
+topology is defined in [`docs/CHARTER.md`](docs/CHARTER.md).
+
 ---
 
-*The remainder of this README is inherited from upstream and describes the
+*The remainder of this README is inherited from korgo-bot and describes the
 original Orgo-based product.*
 
-# Korgo Bot (upstream README)
+# Korgo Bot (inherited upstream README)
 
 Korgo Bot is a focused macOS desktop app for creating persistent AI bots, giving them connected apps, and letting them share a private cloud computer.
 
