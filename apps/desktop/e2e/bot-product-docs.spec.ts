@@ -11,7 +11,7 @@ const screenshotDirectory = path.resolve(import.meta.dirname, '../../../docs/ima
 const botReply =
   'I’m Researcher. I gather evidence, compare options, and turn findings into concise recommendations.'
 
-async function showSetupStep(page: Page, step: 'bot' | 'composio' | 'orgo' | 'provider' | 'ready' | 'tailscale') {
+async function showSetupStep(page: Page, step: 'bot' | 'composio' | 'home' | 'provider' | 'ready' | 'selfhost') {
   await page.evaluate(nextStep => {
     window.localStorage.setItem(
       'hermes-bot-setup-v2',
@@ -100,16 +100,16 @@ test.describe('Botmarchy onboarding documentation', () => {
     const configured = await setupMockBackend({ mockServer: { reply: botReply } })
 
     try {
-      await expect(configured.page.getByRole('heading', { name: 'Your cloud computer' })).toBeVisible({
+      await expect(configured.page.getByRole('heading', { name: 'Where do your bots live?' })).toBeVisible({
         timeout: 120_000
       })
-      await capture(configured.app, configured.page, '01-cloud-computer.png')
+      await capture(configured.app, configured.page, '01-home-choice.png')
 
-      await showSetupStep(configured.page, 'tailscale')
-      await expect(configured.page.getByRole('heading', { name: 'Private cloud connection' })).toBeVisible({
+      await showSetupStep(configured.page, 'selfhost')
+      await expect(configured.page.getByRole('heading', { name: 'Use your own computer' })).toBeVisible({
         timeout: 120_000
       })
-      await capture(configured.app, configured.page, '02-private-connection.png')
+      await capture(configured.app, configured.page, '02-own-computer.png')
 
       await showSetupStep(configured.page, 'bot')
       await expect(configured.page.getByRole('heading', { name: 'Name your first bot' })).toBeVisible({

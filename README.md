@@ -137,9 +137,9 @@ npm run dist:bot:mac:dmg  # local DMG
 
 These local builds are useful for testing. Public distribution still requires the normal Apple signing and notarization credentials.
 
-## First-run setup
+## First-run setup (inherited — describes korgo-bot's Orgo journey)
 
-The setup journey is:
+The korgo setup journey is:
 
 **Orgo → Tailscale → Codex or Grok → First bot → Connected apps → Bot Chat**
 

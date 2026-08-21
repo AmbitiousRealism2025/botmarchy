@@ -22,9 +22,9 @@ test.afterAll(async () => {
 test.describe('bot product shell', () => {
   test('lands in a bot-focused window', async () => {
     const page = fixture!.page
-    await expect(page.getByRole('heading', { name: 'Your cloud computer' })).toBeVisible({ timeout: 120_000 })
+    await expect(page.getByRole('heading', { name: 'Where do your bots live?' })).toBeVisible({ timeout: 120_000 })
     const title = await page.title()
-    expect(title).toMatch(/Hermes|Bots/)
+    expect(title).toMatch(/Botmarchy|Hermes|Bots/)
     await expect(page.locator('.bot-product-shell')).toBeVisible({
       timeout: 60_000
     })

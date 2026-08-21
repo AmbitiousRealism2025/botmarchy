@@ -1,10 +1,10 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getGlobalModelInfo } from '@/hermes'
 
-import { BotSetupOverlay, createFirstBotProfile, formatBotSetupError } from './setup-overlay'
+import { BotSetupOverlay, createFirstBotProfile, isBotProviderSetupReady } from './setup-overlay'
 
 vi.mock('@/hermes', () => ({
   getGlobalModelInfo: vi.fn()
@@ -62,19 +62,27 @@ describe('bot setup overlay', () => {
     expect(typeof BotSetupOverlay).toBe('function')
   })
 
-  it('shows animated, explanatory progress while the cloud computer is prepared', async () => {
-    const provision = new Promise<never>(() => undefined)
-
-    Object.defineProperty(window, 'hermesDesktop', {
-      configurable: true,
-      value: {
-        orgoDesktop: {
-          provision: vi.fn().mockReturnValue(provision),
-          saveKey: vi.fn().mockResolvedValue({}),
-          status: vi.fn().mockResolvedValue({ apiKeySet: false, computerId: '' })
+  it('opens on the home-choice step: this machine or another computer', () => {
+    render(
+      createElement(BotSetupOverlay, {
+        enabled: true,
+        requestGateway: async <T,>() => {
+          return {} as T
         }
-      }
-    })
+      })
+    )
+
+    expect(screen.getByRole('heading', { name: 'Where do your bots live?' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'This machine' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Another computer I own' })).toBeTruthy()
+    // No Orgo surface anywhere in the bot wizard (charter: local-only v1).
+    expect(screen.queryByPlaceholderText('Orgo API key')).toBeNull()
+    expect(screen.queryByRole('button', { name: /cloud computer/i })).toBeNull()
+  })
+
+  it('routes This machine straight to provider onboarding and marks setup ready', () => {
+    const readyListener = vi.fn()
+    window.addEventListener('hermes-bots:provider-setup-ready', readyListener)
 
     const view = render(
       createElement(BotSetupOverlay, {
@@ -85,39 +93,71 @@ describe('bot setup overlay', () => {
       })
     )
 
-    fireEvent.change(screen.getByPlaceholderText('Orgo API key'), { target: { value: 'orgo-secret' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Create cloud computer' }))
+    fireEvent.click(screen.getByRole('button', { name: 'This machine' }))
 
-    const progress = await screen.findByRole('status')
+    expect(readyListener).toHaveBeenCalled()
+    // The overlay unmounts its step UI — provider onboarding takes over.
+    expect(view.container.querySelector('h1')).toBeNull()
 
-    expect(within(progress).getByText('Preparing your cloud computer')).toBeTruthy()
-    expect(within(progress).getByText(/This can take a few minutes/)).toBeTruthy()
-    expect(view.container.querySelector('.animate-spin')).toBeTruthy()
-    expect(screen.getByPlaceholderText('Orgo API key').getAttribute('disabled')).not.toBeNull()
+    window.removeEventListener('hermes-bots:provider-setup-ready', readyListener)
   })
 
-  it('turns Electron context cancellation into an actionable retry message', () => {
+  it('promotes the self-hosted path to a primary choice', () => {
+    render(
+      createElement(BotSetupOverlay, {
+        enabled: true,
+        requestGateway: async <T,>() => {
+          return {} as T
+        }
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Another computer I own' }))
+
+    expect(screen.getByRole('heading', { name: 'Use your own computer' })).toBeTruthy()
     expect(
-      formatBotSetupError(
-        new Error(
-          "Error invoking remote method 'hermes:orgo-desktop:tailscale:begin': OrgoDesktopError: context canceled"
-        ),
-        'Fallback'
-      )
-    ).toBe(
-      'Your cloud computer is ready, but the private connection took too long to start. Try “Authorize cloud computer” again.'
-    )
+      screen.getByPlaceholderText('user@host — e.g. me@omarchy-1.tail9106ac.ts.net')
+    ).toBeTruthy()
+    // Back returns to the home choice, never to an Orgo step.
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByRole('heading', { name: 'Where do your bots live?' })).toBeTruthy()
   })
 
-  it('never dumps raw Tailscale status JSON into the onboarding card', () => {
-    const rawStatus = JSON.stringify({
-      AuthURL: '',
-      BackendState: 'NeedsLogin',
-      Self: { PublicKey: `nodekey:${'0'.repeat(64)}` }
-    })
-
-    expect(formatBotSetupError(new Error(rawStatus.repeat(20)), 'Fallback')).toBe(
-      'Tailscale is installed on the cloud computer, but it did not provide a sign-in link. Try authorizing again.'
+  it('keeps provider onboarding gated until a home computer is chosen', () => {
+    localStorage.setItem(
+      'hermes-bot-setup-v2',
+      JSON.stringify({ complete: false, skipped: false, step: 'home' })
     )
+    expect(isBotProviderSetupReady()).toBe(false)
+
+    localStorage.setItem(
+      'hermes-bot-setup-v2',
+      JSON.stringify({ complete: false, skipped: false, step: 'selfhost' })
+    )
+    expect(isBotProviderSetupReady()).toBe(false)
+
+    localStorage.setItem(
+      'hermes-bot-setup-v2',
+      JSON.stringify({ complete: false, skipped: false, step: 'bot' })
+    )
+    expect(isBotProviderSetupReady()).toBe(true)
+  })
+
+  it('remaps legacy Orgo-first wizard state to the home-choice step', () => {
+    localStorage.setItem(
+      'hermes-bot-setup-v2',
+      JSON.stringify({ complete: false, skipped: false, step: 'orgo' })
+    )
+
+    render(
+      createElement(BotSetupOverlay, {
+        enabled: true,
+        requestGateway: async <T,>() => {
+          return {} as T
+        }
+      })
+    )
+
+    expect(screen.getByRole('heading', { name: 'Where do your bots live?' })).toBeTruthy()
   })
 })
