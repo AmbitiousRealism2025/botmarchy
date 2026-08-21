@@ -28,7 +28,7 @@ for the product definition this release cuts against.
   on Arch/Omarchy.
 - **Muster installable** — the Omarchy bar widget ships as a standalone
   plugin repo, installable with
-  `omarchy plugin add AmbitiousRealism2025/botmarchy-muster`:
+  `omarchy plugin add https://github.com/AmbitiousRealism2025/botmarchy-muster.git`:
   manifest, roster panel, client scripts, gateway snapshot script, installer.
 
 ### Lineage & credit
@@ -45,4 +45,6 @@ on both:
   the desktop product this fork forked from: the Electron + React shell, bot
   roster UI, and the Mac-first packaging this release ports to Linux.
 
-`v0.1.0-base` (2e483a9) marks the fork point; everything since is Botmarchy.
+`v0.1.0-base` (2e483a9) marks the charter baseline — the last commit before
+the charter-driven product work began. The actual fork point from korgo-bot
+is `e2b60fb` (the pre-fork `main`); 18 charter commits sit between the two.

@@ -47,24 +47,10 @@ if (dist && fs.existsSync(distBinary(dist))) {
   )
 }
 if (process.env.HERMES_DESKTOP_PRODUCT === 'bot') {
-  args.push(
-    '-c.appId=dev.botmarchy.Botmarchy',
-    '-c.productName=Botmarchy',
-    '-c.executableName=Botmarchy',
-    '-c.artifactName=Botmarchy-${version}-${os}-${arch}.${ext}',
-    '-c.icon=assets/botmarchy-icon',
-    // Linux desktop entry: Electron's WM_CLASS on Linux comes from the npm
-    // package name ("hermes"), NOT productName — StartupWMClass must match it
-    // or DEs won't associate the running window with the entry.
-    '-c.linux.desktop.StartupWMClass=hermes',
-    '-c.linux.desktop.Comment=Your local bot court for Omarchy',
-    '-c.linux.maintainer=AmbitiousRealism <AmbitiousRealism2025@users.noreply.github.com>',
-    '-c.linux.synopsis=Local bot court for Omarchy',
-    '-c.dmg.title=Install Botmarchy',
-    '-c.mac.extendInfo.CFBundleDisplayName=Botmarchy',
-    '-c.mac.extendInfo.CFBundleExecutable=Botmarchy',
-    '-c.mac.extendInfo.CFBundleName=Botmarchy'
-  )
+  // Bot identity + Linux packaging contract live in a config OBJECT —
+  // `-c.*` CLI strings can't carry arrays and silently mis-nest schema
+  // paths (see electron-builder.bot.config.cjs).
+  args.push('--config', 'electron-builder.bot.config.cjs')
 }
 
 args.push(...process.argv.slice(2))
