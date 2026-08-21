@@ -13,11 +13,25 @@ import { AgentRoutines, RoutineEditor } from './routines'
 
 export { OrgoDesktopPane } from './computer-viewer'
 
+/** Editor state (composite review P1.5): `null` used to mean BOTH
+ *  "editor closed" and "create new" — the two Create controls called
+ *  onEdit(null), a no-op on the closed state, so "Create Routine" was
+ *  dead on arrival. Discriminated value: closed / new / edit(job). */
+type EditorState = { mode: 'closed' } | { mode: 'new' } | { mode: 'edit'; job: CronJob }
+
 export function RoutinesRailPane() {
   const activeProfile = normalizeProfileKey(useStore($activeGatewayProfile))
-  const [routine, setRoutine] = useState<CronJob | null>(null)
+  const [editor, setEditor] = useState<EditorState>({ mode: 'closed' })
   const [routinesRevision, setRoutinesRevision] = useState(0)
-  const editing = routine !== null
+  const editing = editor.mode !== 'closed'
+
+  const backToList = () => {
+    // P3.4: leaving the editor (Back or Esc) always bumps the revision —
+    // toggles made inside the editor must be reflected, not serve a stale
+    // list when the pane re-opens.
+    setRoutinesRevision(value => value + 1)
+    setEditor({ mode: 'closed' })
+  }
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-(--ui-editor-surface-background)">
@@ -28,21 +42,29 @@ export function RoutinesRailPane() {
         <AgentRoutines
           activeProfile={activeProfile}
           key={`${activeProfile}:${routinesRevision}`}
-          onEdit={job => setRoutine(job)}
+          onEdit={job => setEditor(job ? { mode: 'edit', job } : { mode: 'new' })}
         />
       </div>
 
       {editing ? (
-        <div className="absolute inset-0 flex min-h-0 flex-col">
-          <RailHeader onBack={() => setRoutine(null)} title="Routine" />
+        <div
+          className="absolute inset-0 flex min-h-0 flex-col"
+          onKeyDown={event => {
+            if (event.key === 'Escape') {
+              event.preventDefault()
+              backToList()
+            }
+          }}
+        >
+          <RailHeader onBack={backToList} title="Routine" />
           <RoutineEditor
-            job={routine}
+            job={editor.mode === 'edit' ? editor.job : null}
             onClose={changed => {
               if (changed) {
                 setRoutinesRevision(value => value + 1)
               }
 
-              setRoutine(null)
+              setEditor({ mode: 'closed' })
             }}
           />
         </div>

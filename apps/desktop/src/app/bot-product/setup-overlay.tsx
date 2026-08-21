@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useRef, useState } from 'react'
 
 import { syncConnectorsToRoster } from '@/app/connectors/provision'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getGlobalModelInfo } from '@/hermes'
+import { ESCAPE_PRIORITY, isTopEscapeLayer, pushEscapeLayer } from '@/lib/escape-layers'
 import { Loader2 } from '@/lib/icons'
 import { isBotProduct } from '@/lib/product'
 import { cn } from '@/lib/utils'
+import { $desktopOnboarding } from '@/store/onboarding'
 
 import { parseSelfhostTarget } from './selfhost-parse'
 
@@ -267,6 +269,17 @@ export function BotSetupOverlay({
 
   useEffect(() => {
     const completeProvider = () => {
+      // Late-hijack guard (composite review P1.6): if the first-run
+      // provider overlay was dismissed with "I'll choose a provider later"
+      // and never re-opened manually, a provider finishing via Settings
+      // must NOT resurrect this wizard over the live session — the advance
+      // below is only for the visible hand-off.
+      const onboarding = $desktopOnboarding.get()
+
+      if (onboarding.firstRunSkipped && !onboarding.manual) {
+        return
+      }
+
       setDoctor(current => ({ ...current, provider: true }))
       setSetup(current => {
         if (current.step !== 'provider') {
@@ -284,6 +297,109 @@ export function BotSetupOverlay({
 
     return () => window.removeEventListener(BOT_PROVIDER_SETUP_COMPLETE_EVENT, completeProvider)
   }, [])
+
+  // Provider-skip IS a wizard skip (composite review P1.6): "I'll choose a
+  // provider later" dismisses the provider overlay without ever firing the
+  // COMPLETE event, which used to strand this wizard at step 'provider' —
+  // rendering null forever, with nothing re-offering the remaining steps.
+  // The user said "later" to the up-front flow, so the whole first-run
+  // wizard steps aside with it (they return via Settings).
+  useEffect(() => {
+    const retireIfSkipped = (onboarding: { firstRunSkipped: boolean; manual: boolean }) => {
+      if (!onboarding.firstRunSkipped || onboarding.manual) {
+        return
+      }
+
+      setSetup(current => {
+        if (current.complete || current.skipped || current.step !== 'provider') {
+          return current
+        }
+
+        const next: SetupState = { ...current, skipped: true, step: 'ready' }
+        writeSetup(next)
+
+        return next
+      })
+    }
+
+    // Observe the CURRENT value too: a wizard parked at 'provider' across a
+    // restart (store cached the skip, no new transition fires) must retire
+    // at mount, not stay parked forever.
+    retireIfSkipped($desktopOnboarding.get())
+
+    return $desktopOnboarding.subscribe(retireIfSkipped)
+  }, [])
+
+  // Dialog semantics (composite review P1.10): the blocking overlay is a
+  // real modal keyboard surface — Esc participates in the shared escape
+  // layer (a nested Radix picker still wins), and focus is trapped so Tab
+  // never walks the hidden app behind the backdrop.
+  const dialogRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (setup.step === 'provider') {
+      return
+    }
+
+    const releaseLayer = pushEscapeLayer(ESCAPE_PRIORITY.overlay)
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || !isTopEscapeLayer(ESCAPE_PRIORITY.overlay)) {
+        return
+      }
+
+      // Esc mirrors the step's back affordance (selfhost → home). Steps
+      // without a back button keep their forward-only exits — Esc is not a
+      // shortcut around required choices.
+      if (setup.step === 'selfhost' && !busy) {
+        event.preventDefault()
+        goToStep('home')
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      releaseLayer()
+    }
+  }, [setup.step, busy])
+
+  const trapTab = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') {
+      return
+    }
+
+    const container = dialogRef.current
+
+    if (!container) {
+      return
+    }
+
+    const focusables = Array.from(
+      container.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+      )
+    ).filter(element => element.offsetParent !== null || element === document.activeElement)
+
+    if (focusables.length === 0) {
+      return
+    }
+
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    const activeElement = document.activeElement as HTMLElement | null
+
+    if (event.shiftKey) {
+      if (activeElement === first || !container.contains(activeElement)) {
+        event.preventDefault()
+        last.focus()
+      }
+    } else if (activeElement === last || !container.contains(activeElement)) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
 
   if (!isBotProduct() || !enabled || setup.complete || setup.skipped) {
     return null
@@ -468,17 +584,28 @@ export function BotSetupOverlay({
               : 'Ready'
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-background/80 p-6 backdrop-blur-sm"
+      onKeyDown={trapTab}
+    >
+      <div
+        aria-labelledby="bot-setup-heading"
+        aria-modal="true"
+        className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl"
+        ref={dialogRef}
+        role="dialog"
+      >
         <div className="text-xs uppercase tracking-wide text-muted-foreground">Botmarchy</div>
-        <h1 className="mt-1 text-xl font-semibold">{heading}</h1>
+        <h1 className="mt-1 text-xl font-semibold" id="bot-setup-heading">
+          {heading}
+        </h1>
         {setup.step === 'home' ? (
           <div className="mt-4 grid gap-3">
             <p className="text-sm text-muted-foreground">
               Your bots, memory, and conversations live on a computer you control. Pick one to start — you can change it
               later in Settings.
             </p>
-            <Button disabled={busy} onClick={useLocalHermes}>
+            <Button autoFocus disabled={busy} onClick={useLocalHermes}>
               This machine
             </Button>
             <Button disabled={busy} onClick={() => goToStep('selfhost')} variant="secondary">
@@ -487,7 +614,16 @@ export function BotSetupOverlay({
           </div>
         ) : null}
         {setup.step === 'selfhost' ? (
-          <div className="mt-4 grid gap-3">
+          <form
+            className="mt-4 grid gap-3"
+            onSubmit={event => {
+              event.preventDefault()
+
+              if (!busy && parseSelfhostTarget(selfhostTarget).target && isValidAdvancedPort(selfhostPort)) {
+                void connectSelfhost()
+              }
+            }}
+          >
             <p className="text-sm text-muted-foreground">
               Point Botmarchy at a computer you own. It needs SSH access and Hermes installed; bots, memory, and
               conversations live on that computer, reached over SSH — no cloud service involved.
@@ -516,6 +652,8 @@ export function BotSetupOverlay({
               return null
             })()}
             <button
+              aria-controls="bot-setup-selfhost-advanced"
+              aria-expanded={selfhostAdvanced}
               className="justify-self-start text-xs text-muted-foreground underline"
               disabled={busy}
               onClick={() => setSelfhostAdvanced(current => !current)}
@@ -524,7 +662,7 @@ export function BotSetupOverlay({
               {selfhostAdvanced ? 'Hide options' : 'Port, SSH key, custom Hermes path'}
             </button>
             {selfhostAdvanced ? (
-              <div className="grid gap-3 rounded-xl border border-border/70 p-3">
+              <div className="grid gap-3 rounded-xl border border-border/70 p-3" id="bot-setup-selfhost-advanced">
                 <label className="grid gap-1 text-xs text-muted-foreground">
                   SSH port
                   <Input
@@ -568,7 +706,7 @@ export function BotSetupOverlay({
             <Button
               aria-busy={busy}
               disabled={busy || !parseSelfhostTarget(selfhostTarget).target || !isValidAdvancedPort(selfhostPort)}
-              onClick={() => void connectSelfhost()}
+              type="submit"
             >
               {busy ? 'Testing connection…' : 'Connect'}
             </Button>
@@ -580,25 +718,37 @@ export function BotSetupOverlay({
             >
               Back
             </button>
-          </div>
+          </form>
         ) : null}
         {setup.step === 'bot' ? (
-          <div className="mt-4 grid gap-3">
+          <form
+            className="mt-4 grid gap-3"
+            onSubmit={event => {
+              event.preventDefault()
+              void createBot()
+            }}
+          >
             <p className="text-sm text-muted-foreground">This is the bot you will land in after setup. You can add more later.</p>
             <Input autoFocus onChange={event => setBotName(event.target.value)} value={botName} />
-            <Button disabled={busy} onClick={() => void createBot()}>
+            <Button disabled={busy} type="submit">
               Continue
             </Button>
-          </div>
+          </form>
         ) : null}
         {setup.step === 'composio' ? (
-          <div className="mt-4 grid gap-3">
+          <form
+            className="mt-4 grid gap-3"
+            onSubmit={event => {
+              event.preventDefault()
+              void saveComposio()
+            }}
+          >
             <p className="text-sm text-muted-foreground">Optional. Paste a Composio Connect key (`ck_…`) to give every bot the same apps.</p>
-            <Input onChange={event => setComposioKey(event.target.value)} placeholder="ck_…" value={composioKey} />
-            <Button disabled={busy} onClick={() => void saveComposio()}>
+            <Input autoFocus onChange={event => setComposioKey(event.target.value)} placeholder="ck_…" value={composioKey} />
+            <Button disabled={busy} type="submit">
               {composioKey.trim() ? 'Save and continue' : 'Skip for now'}
             </Button>
-          </div>
+          </form>
         ) : null}
         {setup.step === 'ready' ? (
           <div className="mt-4 grid gap-2">
@@ -606,13 +756,15 @@ export function BotSetupOverlay({
             <StatusRow detail="Ready to chat." ok={doctor.bot} title="First bot" />
             <StatusRow detail={doctor.composio ? 'Key saved for every bot.' : 'Skipped — add later from Connectors.'} ok={doctor.composio} title="Connect apps" />
             <StatusRow detail={doctor.computer ? 'Connected over SSH.' : 'Running on this machine.'} ok={doctor.computer} title="Home computer" />
-            <Button className="mt-2" onClick={() => finish(false)}>
+            <Button autoFocus className="mt-2" onClick={() => finish(false)}>
               Open Bot Chat
             </Button>
           </div>
         ) : null}
         {error ? (
-          <p className="mt-3 max-h-28 overflow-y-auto break-words text-sm text-destructive">{error}</p>
+          <p className="mt-3 max-h-28 overflow-y-auto break-words text-sm text-destructive" role="alert">
+            {error}
+          </p>
         ) : null}
         {/* No skip on the selfhost step (PB-4 review F1/F2): finishing the
             wizard while an SSH attempt is pending could apply a machine

@@ -92,3 +92,55 @@ describe('RoutinesRailPane', () => {
     expect(await screen.findByText('Renamed briefing')).toBeTruthy()
   })
 })
+
+  // ── Composite review P1.5 ────────────────────────────────────────────────
+  // `routine === null` meant BOTH "editor closed" and "create new" — the
+  // Create controls called onEdit(null) and dead-ended. These tests click
+  // through the REAL pane (empty state and plus button) so the wiring, not
+  // just the child's callback, is what's asserted.
+
+  it('opens the creator from the empty state (P1.5)', async () => {
+    api.getCronJobs.mockResolvedValue([])
+
+    render(<RoutinesRailPane />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Create Routine' }))
+    // The editor mounts over the empty state with its primary field
+    // focused (autofocus) — not a silent no-op.
+    expect(await screen.findByLabelText('Name')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Back to details' })).toBeTruthy()
+  })
+
+  it('opens the creator from the header plus button (P1.5)', async () => {
+    render(<RoutinesRailPane />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Create Routine' }))
+    expect(await screen.findByLabelText('Name')).toBeTruthy()
+  })
+
+  it('Esc in the creator returns to the list and refreshes it (P3.4)', async () => {
+    api.getCronJobs.mockResolvedValue([])
+
+    render(<RoutinesRailPane />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Create Routine' }))
+    const name = await screen.findByLabelText('Name')
+    fireEvent.keyDown(name, { key: 'Escape' })
+
+    expect(await screen.findByRole('button', { name: 'Create Routine' })).toBeTruthy()
+    expect(screen.queryByLabelText('Name')).toBeNull()
+  })
+
+  it('saves a NEW routine created from the pane end-to-end', async () => {
+    api.getCronJobs.mockResolvedValue([])
+    api.createCronJob.mockResolvedValue({ ...JOB, enabled: true, state: 'scheduled' })
+
+    render(<RoutinesRailPane />)
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Create Routine' }))
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Evening digest' } })
+    fireEvent.change(screen.getByLabelText('Instruction'), { target: { value: 'Wrap the day.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create Routine' }))
+
+    await waitFor(() => expect(api.createCronJob).toHaveBeenCalled())
+  })

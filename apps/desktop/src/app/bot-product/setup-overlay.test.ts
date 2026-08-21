@@ -1,8 +1,10 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { createElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getGlobalModelInfo } from '@/hermes'
+
+import { $desktopOnboarding } from '@/store/onboarding'
 
 import { BotSetupOverlay, createFirstBotProfile, isBotProviderSetupReady } from './setup-overlay'
 
@@ -201,6 +203,144 @@ describe('bot setup overlay', () => {
     expect(screen.getByRole('heading', { name: 'Use your own computer' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Skip remaining setup' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy()
+  })
+})
+
+describe('provider-skip hand-off (composite review P1.6)', () => {
+  const renderOverlay = () =>
+    render(
+      createElement(BotSetupOverlay, {
+        enabled: true,
+        requestGateway: async <T,>() => {
+          return {} as T
+        }
+      })
+    )
+
+  const parkAtProvider = () => {
+    localStorage.setItem(
+      'hermes-bot-setup-v2',
+      JSON.stringify({ complete: false, skipped: false, step: 'provider' })
+    )
+  }
+
+  it('treats the provider overlay\'s first-run skip as a wizard skip (no stranding)', () => {
+    parkAtProvider()
+    act(() => {
+      $desktopOnboarding.set({ ...$desktopOnboarding.get(), firstRunSkipped: false, manual: false })
+    })
+    renderOverlay()
+
+    // The wizard renders null while parked at provider (the provider
+    // overlay owns this phase) — the old bug: dismissing it with "later"
+    // fired NO event, so this state persisted forever with nothing
+    // re-offering the remaining steps.
+    expect(document.body.textContent || '').not.toContain('Where do your bots live?')
+
+    // "I'll choose a provider later": the store flip must retire the wizard.
+    act(() => {
+      $desktopOnboarding.set({ ...$desktopOnboarding.get(), firstRunSkipped: true })
+    })
+
+    const persisted = JSON.parse(localStorage.getItem('hermes-bot-setup-v2') || '{}')
+    expect(persisted.skipped).toBe(true)
+  })
+
+  it('a wizard parked at provider across a restart retires at mount when the skip is already cached', () => {
+    parkAtProvider()
+    act(() => {
+      $desktopOnboarding.set({ ...$desktopOnboarding.get(), firstRunSkipped: true, manual: false })
+    })
+
+    // Mount AFTER the skip (fresh page load): no transition will ever fire —
+    // the retire must come from observing the cached state.
+    renderOverlay()
+
+    const persisted = JSON.parse(localStorage.getItem('hermes-bot-setup-v2') || '{}')
+    expect(persisted.skipped).toBe(true)
+  })
+
+  it('a provider completing via Settings after the skip does not resurrect the wizard', () => {
+    parkAtProvider()
+    $desktopOnboarding.set({ ...$desktopOnboarding.get(), firstRunSkipped: true, manual: false })
+    renderOverlay()
+
+    // User finishes provider setup in Settings → wiring fires the COMPLETE
+    // event. With firstRunSkipped set, the wizard must not advance to the
+    // bot step and pop over the live session (the late-hijack).
+    fireEvent(window, new CustomEvent('hermes-bots:provider-setup-complete'))
+
+    // The wizard retired at mount (skip already cached); the COMPLETE event
+    // must not advance it to 'bot' and pop over the live session.
+    const persisted = JSON.parse(localStorage.getItem('hermes-bot-setup-v2') || '{}')
+    expect(persisted.step).toBe('ready')
+    expect(persisted.skipped).toBe(true)
+  })
+
+  it('the visible hand-off still advances: completing the provider overlay mid-wizard goes to the bot step', () => {
+    parkAtProvider()
+    $desktopOnboarding.set({ ...$desktopOnboarding.get(), firstRunSkipped: false, manual: false })
+    renderOverlay()
+
+    fireEvent(window, new CustomEvent('hermes-bots:provider-setup-complete'))
+
+    const persisted = JSON.parse(localStorage.getItem('hermes-bot-setup-v2') || '{}')
+    expect(persisted.step).toBe('bot')
+  })
+})
+
+describe('wizard dialog semantics (composite review P1.10)', () => {
+  it('renders as a modal dialog labelled by its heading', () => {
+    localStorage.setItem('hermes-bot-setup-v2', JSON.stringify({ complete: false, skipped: false, step: 'home' }))
+
+    render(
+      createElement(BotSetupOverlay, {
+        enabled: true,
+        requestGateway: async <T,>() => ({}) as T
+      })
+    )
+
+    const dialog = screen.getByRole('dialog', { name: 'Where do your bots live?' })
+    expect(dialog.getAttribute('aria-modal')).toBe('true')
+  })
+
+  it('Enter submits the selfhost form (real form semantics, not a dead input)', () => {
+    localStorage.setItem('hermes-bot-setup-v2', JSON.stringify({ complete: false, skipped: false, step: 'home' }))
+
+    window.hermesDesktop = {
+      testConnectionConfig: vi.fn().mockResolvedValue({ reachable: true, sshError: null }),
+      applyConnectionConfig: vi.fn().mockResolvedValue({})
+    } as unknown as typeof window.hermesDesktop
+
+    render(
+      createElement(BotSetupOverlay, {
+        enabled: true,
+        requestGateway: async <T,>() => ({}) as T
+      })
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Another computer I own' }))
+    const target = screen.getByPlaceholderText(/me@omarchy-1/)
+    fireEvent.change(target, { target: { value: 'me@omarchy-1.tail9106ac.ts.net' } })
+    fireEvent.submit(target.closest('form')!)
+
+    expect(window.hermesDesktop.testConnectionConfig).toHaveBeenCalled()
+  })
+
+  it('Escape on the selfhost step returns to the home choice', () => {
+    localStorage.setItem('hermes-bot-setup-v2', JSON.stringify({ complete: false, skipped: false, step: 'selfhost' }))
+
+    render(
+      createElement(BotSetupOverlay, {
+        enabled: true,
+        requestGateway: async <T,>() => ({}) as T
+      })
+    )
+
+    expect(screen.getByRole('heading', { name: 'Use your own computer' })).toBeTruthy()
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(screen.getByRole('heading', { name: 'Where do your bots live?' })).toBeTruthy()
   })
 })
 

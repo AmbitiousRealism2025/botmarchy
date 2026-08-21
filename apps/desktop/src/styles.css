@@ -999,14 +999,21 @@
   }
 }
 
-/* No focus rings, anywhere. Kills the native outline plus Tailwind's
-   `focus-visible:ring-*` (a box-shadow driven by --tw-ring-*). Unlayered so it
-   beats the utilities layer without !important on the outline. The composer /
-   .desktop-input-chrome focus glow is untouched — those set `box-shadow`
-   directly rather than through the ring vars. */
-*:focus,
-*:focus-visible {
+/* Focus visibility (composite review P1.9): keyboard focus is a charter
+   promise ("every surface fully operable without a mouse"), so :focus-visible
+   ALWAYS paints a visible outline from the theme's ring token (accent garnish
+   in the bot SKU). Pointer-focus (:focus from a mouse click) stays silent.
+   Tailwind's ring-variable kill stays: the outline below is ours, not the
+   ring's, and inputs that paint their own focus glow (composer /
+   .desktop-input-chrome set box-shadow directly) get to keep it by
+   overriding --focus-outline-width to 0 in their own rule. */
+*:focus {
   outline: none;
+}
+
+*:focus-visible {
+  outline: var(--focus-outline-width, 2px) solid var(--dt-ring, currentColor);
+  outline-offset: 2px;
 }
 
 *:focus-visible {
