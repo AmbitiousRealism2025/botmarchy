@@ -170,6 +170,8 @@ export const ar = defineLocale({
     showRightSidebar: 'إظهار الشريط الأيمن',
     showRoutines: 'إظهار الروتينات',
     hideRoutines: 'إخفاء الروتينات',
+    showComputer: 'إظهار الكمبيوتر',
+    hideComputer: 'إخفاء الكمبيوتر',
     muteHaptics: 'كتم الاهتزازات',
     unmuteHaptics: 'تفعيل الاهتزازات',
     openSettings: 'فتح الإعدادات',

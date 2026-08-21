@@ -1,9 +1,10 @@
-/** The Orgo noVNC Computer drawer — UNMOUNTED. Botmarchy removed the
- *  Computer section from the bot rail (BOT-3): local-only posture, no Orgo
- *  code path in the product UI. This viewer stays in-tree, unmounted, per
- *  the fork charter (docs/CHARTER.md): it becomes relevant again only if
- *  self-hosted remote desktop (e.g. wayvnc) is ever wired. Nothing imports
- *  this component; its tests keep it honest while it sleeps. */
+/** The Orgo noVNC Computer drawer. SKU-scoped (BOT-3 + review F1): the
+ *  generic Hermes SKU mounts this pane — unchanged from korgo lineage so
+ *  Nous/korgo merges stay clean. The bot product does not mount it (no
+ *  Orgo code path in the bot UI, per the fork charter's local-only
+ *  posture); it becomes relevant to the bot SKU again only if self-hosted
+ *  remote desktop (e.g. wayvnc) is ever wired. Re-exported from
+ *  ./index.tsx; its tests keep it honest. */
 import { useStore } from '@nanostores/react'
 import type RFB from '@novnc/novnc'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'

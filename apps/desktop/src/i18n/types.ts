@@ -242,6 +242,8 @@ export interface Translations {
     showRightSidebar: string
     showRoutines: string
     hideRoutines: string
+    showComputer: string
+    hideComputer: string
     muteHaptics: string
     unmuteHaptics: string
     openSettings: string

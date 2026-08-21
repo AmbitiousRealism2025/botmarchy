@@ -195,6 +195,8 @@ export const zhHant = defineLocale({
     showRightSidebar: '顯示右側邊欄',
     showRoutines: '顯示例程',
     hideRoutines: '隱示例程',
+    showComputer: '顯示電腦',
+    hideComputer: '隱藏電腦',
     muteHaptics: '靜音觸感回饋',
     unmuteHaptics: '開啟觸感回饋',
     openSettings: '開啟設定',

@@ -195,6 +195,8 @@ export const zh: Translations = {
     showRightSidebar: '显示右侧栏',
     showRoutines: '显示例程',
     hideRoutines: '隐藏例程',
+    showComputer: '显示电脑',
+    hideComputer: '隐藏电脑',
     muteHaptics: '关闭触感反馈',
     unmuteHaptics: '开启触感反馈',
     openSettings: '打开设置',

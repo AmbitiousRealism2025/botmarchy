@@ -201,6 +201,8 @@ export const ja = defineLocale({
     showRightSidebar: '右サイドバーを表示',
     showRoutines: 'ルーティンを表示',
     hideRoutines: 'ルーティンを非表示',
+    showComputer: 'コンピューターを表示',
+    hideComputer: 'コンピューターを非表示',
     muteHaptics: '触覚フィードバックをオフ',
     unmuteHaptics: '触覚フィードバックをオン',
     openSettings: '設定を開く',

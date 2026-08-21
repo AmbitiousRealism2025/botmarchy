@@ -1,7 +1,7 @@
-/** The bot product's right rail: the active agent's routines (cron jobs)
- *  and their editor. The Orgo Computer drawer was removed from this rail
- *  (BOT-3, per the fork charter's local-only posture) — the noVNC viewer
- *  stays in-tree, unmounted, at ./computer-viewer.tsx. */
+/** The right rail's bot-product pane: the active agent's routines (cron
+ *  jobs) and their editor. SKU-scoped (BOT-3 + review F1): the bot product
+ *  mounts this pane; the generic Hermes SKU keeps its Orgo Computer pane,
+ *  re-exported below from ./computer-viewer (close to korgo lineage). */
 import { useStore } from '@nanostores/react'
 import { useState } from 'react'
 
@@ -10,6 +10,8 @@ import type { CronJob } from '@/types/hermes'
 
 import { RailHeader } from './rail'
 import { AgentRoutines, RoutineEditor } from './routines'
+
+export { OrgoDesktopPane } from './computer-viewer'
 
 export function RoutinesRailPane() {
   const activeProfile = normalizeProfileKey(useStore($activeGatewayProfile))

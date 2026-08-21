@@ -200,6 +200,8 @@ export const en: Translations = {
     showRightSidebar: 'Show right sidebar',
     showRoutines: 'Show routines',
     hideRoutines: 'Hide routines',
+    showComputer: 'Show computer',
+    hideComputer: 'Hide computer',
     muteHaptics: 'Mute haptics',
     unmuteHaptics: 'Unmute haptics',
     openSettings: 'Open settings',
