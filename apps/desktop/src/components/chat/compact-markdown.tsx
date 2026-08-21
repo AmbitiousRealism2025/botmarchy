@@ -39,17 +39,21 @@ function tagged<T extends keyof typeof TAG_CLASSES>(Tag: T) {
   return Component
 }
 
-function MarkdownAnchor({ children, className, href, ...rest }: ComponentProps<'a'>) {
+function MarkdownAnchor({ children, className, href, title }: ComponentProps<'a'>) {
+  // Only http(s) links are interactive. Everything else a model can emit —
+  // file: payloads aimed at the same-window navigation guard, javascript:
+  // URLs, hash routes into the app shell — renders as inert text (composite
+  // review P1.1: a local-HTML click-through must not be reachable at all).
   if (!href || !/^https?:\/\//i.test(href)) {
     return (
-      <a className={cn('ref', className)} href={href} {...rest}>
+      <span className={cn('ref', className)} title={title}>
         {children}
-      </a>
+      </span>
     )
   }
 
   return (
-    <ExternalLink className={className} href={href}>
+    <ExternalLink className={className} href={href} title={title}>
       {children}
     </ExternalLink>
   )

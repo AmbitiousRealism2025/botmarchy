@@ -26,13 +26,13 @@ function notifyOsEngage(bot: OsEngageBot, label: string, preview: string, inboun
 
   osEngageLastFired.set(key, now)
 
-  // bot.name is the PROFILE name (what the deep link routes by).
-  const execCommand = key ? `botmarchy-focus --bot ${key}` : 'botmarchy-focus'
-
+  // bot.name is the PROFILE name (what the deep link routes by). Main
+  // builds the exec command itself from this profile (P1.2: the renderer
+  // never supplies the string the daemon will shell-exec).
   window.hermesDesktop?.osNotify?.({
     title: inbound ? `${label} has a new message` : `${label} has new activity`,
     body: preview.slice(0, 140) || 'Open the chat to see it.',
-    exec: execCommand
+    botProfile: key || undefined
   }).catch(() => undefined)
 
   return true

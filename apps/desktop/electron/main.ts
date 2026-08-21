@@ -181,6 +181,7 @@ import { runNativeLogin } from './native-oauth-login'
 import { loadNativeTokenSet, type NativeTokenStoreIo, persistNativeTokenSet } from './native-token-store'
 import { serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
 import { createOmarchyThemeService, type OmarchyGarnishTokens, omarchyThemePaths } from './omarchy-theme'
+import { osNotifyExecFor } from './os-notify'
 import {
   beginOrgoTailscaleSetup,
   BOT_ORGO_LEGACY_WORKSPACE_NAME,
@@ -9277,7 +9278,28 @@ function wireCommonWindowHandlers(win, { zoom = true }: { zoom?: boolean } = {})
     return { action: 'deny' }
   })
   win.webContents.on('will-navigate', (event, url) => {
-    if ((DEV_SERVER && url.startsWith(DEV_SERVER)) || (!DEV_SERVER && url.startsWith('file:'))) {
+    if (DEV_SERVER && url.startsWith(DEV_SERVER)) {
+      return
+    }
+
+    // Packaged: confine top-level navigation to the bundled renderer entry
+    // (hash routes and window-query variants included). A same-window
+    // navigation to any other file: URL replaces the trusted renderer with
+    // local HTML that still carries the privileged preload (composite
+    // review P1.1), so those are blocked outright — never shell-opened.
+    if (!DEV_SERVER) {
+      const entryUrl = pathToFileURL(resolveRendererIndex()).toString()
+
+      if (url === entryUrl || url.startsWith(`${entryUrl}?`) || url.startsWith(`${entryUrl}#`)) {
+        return
+      }
+
+      event.preventDefault()
+
+      if (!url.startsWith('file:')) {
+        openExternalUrl(url)
+      }
+
       return
     }
 
@@ -12012,7 +12034,6 @@ ipcMain.on('hermes:quick-entry:dismiss', () => hideQuickEntryWindow())
 ipcMain.handle('hermes:os-notify', (_event, payload) => {
   const title = typeof payload?.title === 'string' ? payload.title : ''
   const body = typeof payload?.body === 'string' ? payload.body : ''
-  const execCommand = typeof payload?.exec === 'string' ? payload.exec : ''
 
   if (!title || !isBotProduct()) {
     return { ok: false }
@@ -12020,10 +12041,10 @@ ipcMain.handle('hermes:os-notify', (_event, payload) => {
 
   const args = ['notification', 'send', '--app-name', 'Botmarchy', '-g', '⚔']
 
-  if (execCommand && /^botmarchy-focus( |$)/.test(execCommand)) {
-    // Only the vetted engage command is ever exec'd from a notification.
-    args.push('--exec', execCommand)
-  }
+  // Composite review P1.2: the renderer never supplies the exec string —
+  // it names a bot profile (payload.botProfile) and we build one of two
+  // fixed command shapes in os-notify.ts. A payload.exec field is ignored.
+  args.push('--exec', osNotifyExecFor(payload?.botProfile))
 
   args.push(title)
 

@@ -43,7 +43,7 @@ describe('notifyOsEngage (PB-16 F2)', () => {
     expect(calls[0]).toMatchObject({
       title: 'testbot has a new message',
       body: 'Quick systems check — acknowledged',
-      exec: 'botmarchy-focus --bot test-bot'
+      botProfile: 'test-bot'
     })
   })
 
@@ -71,6 +71,6 @@ describe('notifyOsEngage (PB-16 F2)', () => {
     } as unknown as typeof window.hermesDesktop
 
     __testOsEngage.fire({}, 'Mystery', 'x', false)
-    expect(calls[0]).toMatchObject({ exec: 'botmarchy-focus' })
+    expect(calls[0]).toMatchObject({ botProfile: undefined })
   })
 })
