@@ -817,6 +817,9 @@ export const ja = defineLocale({
         '前回の接続以降、ホスト鍵が変更されています。想定どおりか確認し、ssh-keygen -R <host> を実行してから再接続してください。',
       sshErrNotInstalled:
         'リモートホストに Hermes がインストールされていません。リモートでインストールする（curl -fsSL https://hermes-agent.nousresearch.com/install.sh | sh）か、Hermes パスを設定してください。',
+      // P1.3: ボット SKU はアップストリームの汎用インストーラを案内しない。
+      sshErrNotInstalledBot:
+        'そのコンピューターに Hermes がインストールされていません。Botmarchy が固定する Hermes リリースをインストールする（GitHub の Botmarchy リリースノートを参照）か、Hermes パスを設定してください。',
       sshErrPlatform:
         'サポートされていないリモートプラットフォームです。Hermes Desktop の SSH モードは Linux、macOS、Windows のリモートホストに対応しています。',
       sshErrTimeout: 'SSH 接続がタイムアウトしました。ホストが到達不能、またはスリープ中の可能性があります。',

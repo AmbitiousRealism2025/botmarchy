@@ -7918,14 +7918,13 @@ function effectiveSshConfigFingerprint(sshConfig) {
 }
 
 async function bootstrapSshConnection(profile, sshConfig, reuseToken, source) {
-  if (isBotProduct()) {
-    try {
-      const { apiKey, computerId } = defaultOrgoDesktopCredentials()
-      await ensureOrgoComputerRunning(apiKey, computerId)
-    } catch (error) {
-      sshRememberLog(`[ssh] could not wake the shared Orgo computer: ${error instanceof Error ? error.message : String(error)}`)
-    }
-  }
+  // Composite review P1.4: the Orgo shared-computer wake used to run when
+  // isBotProduct() — exactly backwards (bot product has no Orgo code path
+  // in its UI, per charter "unmounted"), log-noising every SSH bootstrap
+  // and holding the door open to an outbound Orgo call if a stray config
+  // file ever landed in the userData. Deleted outright: the bot SKU never
+  // wakes an Orgo computer, and korgo's generic lineage lost that need in
+  // this fork too (the Orgo machinery itself stays in the tree, unmounted).
 
   const scope = sshScopeKey(profile)
   const effectiveConfigFingerprint = effectiveSshConfigFingerprint(sshConfig)
@@ -8089,6 +8088,40 @@ function persistSshConnectionToken(profile, source, token) {
 // the connection test (which pass no profile) are unchanged.
 async function resolveRemoteBackend(profile) {
   const config = readDesktopConnectionConfig()
+
+  // Composite review P2.5: charter says the bot SKU has exactly two
+  // connection modes — local and SSH. The renderer already normalizes
+  // hydrated cloud/remote configs (gateway-settings), but this is the
+  // main-process authority: a hand-edited connection.json or a stray
+  // HERMES_DESKTOP_REMOTE_URL must not send traffic to an arbitrary URL
+  // while Settings says "local". Remote/cloud paths below are bot-SKU
+  // dead code; SSH (and local, by falling through) are the only outs.
+  if (isBotProduct()) {
+    if (config.mode === 'ssh') {
+      const ssh = normalizeSshConfig({ mode: 'ssh', ...(config.remote || {}) })
+
+      if (!ssh) {
+        throw new Error('SSH remote mode is selected but no host is configured.')
+      }
+
+      const reuseToken = decryptDesktopSecret(config.remote?.token)
+
+      return bootstrapSshConnection(profile ?? null, ssh, reuseToken, 'settings')
+    }
+
+    // Per-profile SSH overrides stay honored (a bot pointing at its own
+    // box IS the product's second mode); per-profile URL/cloud overrides
+    // and the env remote do not exist in this SKU.
+    const sshOverride = profileSshOverride(config, profile)
+
+    if (sshOverride) {
+      const reuseToken = decryptDesktopSecret(config.profiles?.[connectionScopeKey(profile)]?.token)
+
+      return bootstrapSshConnection(profile, sshOverride, reuseToken, 'profile')
+    }
+
+    return null
+  }
 
   // 1. Per-profile override — "a profile with its own remote host". Wins even
   //    over the env override so an explicitly-configured profile always

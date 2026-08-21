@@ -27,6 +27,8 @@
 
 import crypto from 'node:crypto'
 
+import { BOT_TEMPLATE_REF, isBotProduct } from './product'
+
 const LOCKFILE_SCHEMA_VERSION = 2
 // Bumped when the desktop<->dashboard reuse contract changes in a way that makes
 // an old running dashboard unsafe to reattach to (token handling, readiness/spawn
@@ -198,10 +200,17 @@ async function locateHermes(ssh, remoteHermesPath) {
     }
   }
 
-  const err: any = new Error(
-    'Hermes is not installed on the remote host (could not find a `hermes` executable). ' +
-      'Install it on the remote with:  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | sh  ' +
+  // Composite review P1.3: the bot SKU must never prescribe the upstream
+  // generic installer (curl …install.sh | sh) — Botmarchy's client and the
+  // compatibility-pinned remote template move together (charter). The
+  // generic SKU keeps Nous's own instruction.
+  const guidance = isBotProduct()
+    ? `Install the Botmarchy-pinned Hermes release on the remote (compatibility ref ${BOT_TEMPLATE_REF} — see the Botmarchy release notes on GitHub), or set the Hermes path explicitly in the SSH connection settings.`
+    : 'Install it on the remote with:  curl -fsSL https://hermes-agent.nousresearch.com/install.sh | sh  ' +
       '— or set the Hermes path explicitly in the SSH connection settings.'
+
+  const err: any = new Error(
+    'Hermes is not installed on the remote host (could not find a `hermes` executable). ' + guidance
   )
 
   err.kind = 'hermes-not-found'

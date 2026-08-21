@@ -1009,6 +1009,9 @@ export const zh: Translations = {
       sshErrHostKey: '自上次连接以来主机密钥已更改。请确认这是预期的，然后运行 ssh-keygen -R <host> 并重新连接。',
       sshErrNotInstalled:
         '远程主机上未安装 Hermes。请在远程安装（curl -fsSL https://hermes-agent.nousresearch.com/install.sh | sh）或设置 Hermes 路径。',
+      // P1.3: 机器人 SKU 不引导用户使用上游通用安装脚本。
+      sshErrNotInstalledBot:
+        '那台电脑上未安装 Hermes。请安装 Botmarchy 锁定的 Hermes 版本（见 GitHub 上的 Botmarchy 发行说明）或设置 Hermes 路径。',
       sshErrPlatform: '不支持的远程平台。Hermes Desktop 的 SSH 模式支持 Linux、macOS 和 Windows 远程主机。',
       sshErrTimeout: 'SSH 连接超时。主机可能无法访问或处于休眠状态。',
       sshErrUpdateRequired: '使用 Desktop SSH 连接前，请更新远程主机上的 Hermes。',

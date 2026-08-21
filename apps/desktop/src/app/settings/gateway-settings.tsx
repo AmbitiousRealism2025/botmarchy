@@ -537,7 +537,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
 
       const errors = {
         'auth-failed': g.sshErrAuth,
-        'hermes-not-found': g.sshErrNotInstalled,
+        'hermes-not-found': isBotProduct() ? g.sshErrNotInstalledBot : g.sshErrNotInstalled,
         'host-key-changed': g.sshErrHostKey,
         timeout: g.sshErrTimeout,
         unreachable: g.sshErrUnreachable,
@@ -993,7 +993,7 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
       if (!result.reachable) {
         const errors = {
           'auth-failed': g.sshErrAuth,
-          'hermes-not-found': g.sshErrNotInstalled,
+          'hermes-not-found': isBotProduct() ? g.sshErrNotInstalledBot : g.sshErrNotInstalled,
           'host-key-changed': g.sshErrHostKey,
           timeout: g.sshErrTimeout,
           unreachable: g.sshErrUnreachable,

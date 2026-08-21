@@ -686,6 +686,7 @@ export interface Translations {
       sshErrAuth: string
       sshErrHostKey: string
       sshErrNotInstalled: string
+      sshErrNotInstalledBot: string
       sshErrPlatform: string
       sshErrTimeout: string
       sshErrUpdateRequired: string
