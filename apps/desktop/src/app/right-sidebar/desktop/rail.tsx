@@ -1,6 +1,9 @@
 import type { KeyboardEvent, PointerEvent, ReactNode } from 'react'
 import { useRef, useState } from 'react'
 
+import { Button } from '@/components/ui/button'
+import { ChevronLeft } from '@/lib/icons'
+
 const DEFAULT_WIDTH = 268
 const MIN_WIDTH = 240
 const MAX_WIDTH = 520
@@ -31,6 +34,34 @@ function storeWidth(width: number) {
 
 interface ResizableComputerRailProps {
   children: ReactNode
+}
+
+interface RailHeaderProps {
+  onBack?: () => void
+  title?: string
+}
+
+/** The rail pane's header: a back button on the left, a centered title. No
+ *  close button — the titlebar toggle owns opening and closing the rail, and
+ *  two controls for one state invites the two to disagree. */
+export function RailHeader({ onBack, title }: RailHeaderProps) {
+  return (
+    <header className="relative flex h-9 shrink-0 items-center justify-between px-1.5">
+      {onBack ? (
+        <Button aria-label="Back to details" onClick={onBack} size="icon-xs" variant="ghost">
+          <ChevronLeft />
+        </Button>
+      ) : (
+        <span />
+      )}
+      {title ? (
+        <h2 className="pointer-events-none absolute inset-x-9 truncate text-center text-[0.72rem] font-medium text-(--ui-text-secondary)">
+          {title}
+        </h2>
+      ) : null}
+      <span />
+    </header>
+  )
 }
 
 export function ResizableComputerRail({ children }: ResizableComputerRailProps) {

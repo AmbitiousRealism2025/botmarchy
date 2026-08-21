@@ -82,7 +82,7 @@ async function prepareBotWorkspace(page: Page) {
           title: 'Launch Team',
           createdAt: Date.now(),
           lastActive: Date.now(),
-          preview: 'Coordinate the next Korgo Bot release.'
+          preview: 'Coordinate the next Botmarchy release.'
         }
       })
     )
@@ -93,7 +93,7 @@ async function prepareBotWorkspace(page: Page) {
   })
 }
 
-test.describe('Korgo Bot onboarding documentation', () => {
+test.describe('Botmarchy onboarding documentation', () => {
   test('captures the complete setup journey', async () => {
     fs.mkdirSync(screenshotDirectory, { recursive: true })
 

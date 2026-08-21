@@ -231,10 +231,10 @@ test('lists workspaces and computers without exposing the key in parsed results'
   assert.equal(calls.some(url => url.includes('/computers')), false)
 })
 
-test('reuses dedicated Korgo Bot and legacy Hermes Bots workspaces', () => {
+test('reuses dedicated Botmarchy and legacy Hermes Bots workspaces', () => {
   const workspaces = [
     { id: 'first', name: 'Existing project' },
-    { id: WORKSPACE_ID, name: ' korgo bot ' },
+    { id: WORKSPACE_ID, name: ' botmarchy ' },
     { id: 'legacy', name: ' hermes bots ' }
   ]
 

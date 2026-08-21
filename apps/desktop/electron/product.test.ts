@@ -14,7 +14,7 @@ import {
 } from './product'
 
 test('generic desktop stays Hermes unless HERMES_DESKTOP_PRODUCT=bot', () => {
-  assert.equal(BOT_APP_NAME, 'Korgo Bot')
+  assert.equal(BOT_APP_NAME, 'Botmarchy')
   assert.equal(BOT_TEMPLATE_REF, 'system/hermes-agent@1.0.0')
   assert.equal(BOT_UPDATE_POLICY, 'source-release')
   assert.equal(allowsGenericHermesUpdates(), !isBotProduct())

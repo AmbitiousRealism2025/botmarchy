@@ -198,6 +198,8 @@ export const en: Translations = {
     swapSidebarSides: 'Swap sidebar sides',
     hideRightSidebar: 'Hide right sidebar',
     showRightSidebar: 'Show right sidebar',
+    showRoutines: 'Show routines',
+    hideRoutines: 'Hide routines',
     showComputer: 'Show computer',
     hideComputer: 'Hide computer',
     muteHaptics: 'Mute haptics',

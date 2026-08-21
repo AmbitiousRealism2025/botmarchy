@@ -193,6 +193,8 @@ export const zh: Translations = {
     swapSidebarSides: '交换侧边栏位置',
     hideRightSidebar: '隐藏右侧栏',
     showRightSidebar: '显示右侧栏',
+    showRoutines: '显示例程',
+    hideRoutines: '隐藏例程',
     showComputer: '显示电脑',
     hideComputer: '隐藏电脑',
     muteHaptics: '关闭触感反馈',

@@ -48,15 +48,15 @@ if (dist && fs.existsSync(distBinary(dist))) {
 }
 if (process.env.HERMES_DESKTOP_PRODUCT === 'bot') {
   args.push(
-    '-c.appId=com.nousresearch.hermes-bots',
-    '-c.productName=Korgo Bot',
-    '-c.executableName=Korgo Bot',
-    '-c.artifactName=Korgo-Bot-${version}-${os}-${arch}.${ext}',
-    '-c.icon=assets/korgo-bot-icon',
-    '-c.dmg.title=Install Korgo Bot',
-    '-c.mac.extendInfo.CFBundleDisplayName=Korgo Bot',
-    '-c.mac.extendInfo.CFBundleExecutable=Korgo Bot',
-    '-c.mac.extendInfo.CFBundleName=Korgo Bot'
+    '-c.appId=dev.botmarchy.Botmarchy',
+    '-c.productName=Botmarchy',
+    '-c.executableName=Botmarchy',
+    '-c.artifactName=Botmarchy-${version}-${os}-${arch}.${ext}',
+    '-c.icon=assets/botmarchy-icon',
+    '-c.dmg.title=Install Botmarchy',
+    '-c.mac.extendInfo.CFBundleDisplayName=Botmarchy',
+    '-c.mac.extendInfo.CFBundleExecutable=Botmarchy',
+    '-c.mac.extendInfo.CFBundleName=Botmarchy'
   )
 }
 

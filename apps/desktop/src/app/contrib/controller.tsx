@@ -42,7 +42,7 @@ import { useContributions } from '@/contrib/react/use-contributions'
 import { registry } from '@/contrib/registry'
 import { discoverRuntimePlugins } from '@/contrib/runtime-loader'
 import { NEW_SESSION_TITLE, sessionTitle as storedSessionTitle } from '@/lib/chat-runtime'
-import { Download, FileText, LayoutDashboard, Monitor, PanelBottom, Terminal, Upload, Zap } from '@/lib/icons'
+import { Clock, Download, FileText, LayoutDashboard, Monitor, PanelBottom, Terminal, Upload, Zap } from '@/lib/icons'
 import { type KeybindContribution, KEYBINDS_AREA } from '@/lib/keybinds/actions'
 import { isBotProduct } from '@/lib/product'
 import { setYoloEnabled } from '@/lib/yolo-session'
@@ -77,7 +77,7 @@ import {
   WorkspaceTabMenu
 } from '../chat/session-tile'
 import { HudShell } from '../hud/hud-shell'
-import { OrgoDesktopPane } from '../right-sidebar/desktop'
+import { OrgoDesktopPane, RoutinesRailPane } from '../right-sidebar/desktop'
 import { ResizableComputerRail } from '../right-sidebar/desktop/rail'
 import { $orgoDesktopOpen, $terminalTakeover, setOrgoDesktopOpen, setTerminalTakeover } from '../right-sidebar/store'
 import { $workspaceIsPage } from '../routes'
@@ -659,18 +659,32 @@ registry.register(
   })
 )
 
-// Computer details are fixed app chrome, not a tile. ContribController mounts
-// the rail outside the layout tree so terminals, previews, and persisted user
+// The right rail is fixed app chrome, not a tile. ContribController mounts
+// it outside the layout tree so terminals, previews, and persisted user
 // layouts can never add a tab strip or steal part of its height.
+// SKU-scoped (BOT-3 remediation F1): the bot product's rail is the agent
+// routines; the generic Hermes SKU keeps its Orgo Computer pane, close to
+// korgo lineage so Nous/korgo merges stay clean.
 registry.register(
-  paletteToggle({
-    id: 'computer.toggle',
-    label: 'Toggle computer',
-    icon: Monitor,
-    keywords: ['computer', 'desktop', 'orgo', 'vnc', 'remote'],
-    get: () => $orgoDesktopOpen.get(),
-    set: setOrgoDesktopOpen
-  })
+  paletteToggle(
+    isBotProduct()
+      ? {
+          id: 'routines.toggle',
+          label: 'Toggle routines',
+          icon: Clock,
+          keywords: ['routines', 'cron', 'jobs', 'schedule', 'scheduling'],
+          get: () => $orgoDesktopOpen.get(),
+          set: setOrgoDesktopOpen
+        }
+      : {
+          id: 'computer.toggle',
+          label: 'Toggle computer',
+          icon: Monitor,
+          keywords: ['computer', 'desktop', 'orgo', 'vnc', 'remote'],
+          get: () => $orgoDesktopOpen.get(),
+          set: setOrgoDesktopOpen
+        }
+  )
 )
 
 // YOLO (dangerous-command approval bypass) is a status-bar zap and a /yolo
@@ -722,7 +736,7 @@ function TitlebarSlot({ area, className, style }: TitlebarSlotProps) {
 }
 
 export function ContribController() {
-  const orgoDesktopOpen = useStore($orgoDesktopOpen)
+  const routinesRailOpen = useStore($orgoDesktopOpen)
   const sidebarOpen = useStore($sidebarOpen)
   const statusbarVisible = useStore($statusbarVisible)
 
@@ -833,9 +847,9 @@ export function ContribController() {
 
             <div className="flex min-h-0 min-w-0 flex-1">
               <LayoutTreeRoot />
-              {orgoDesktopOpen ? (
+              {routinesRailOpen ? (
                 <ResizableComputerRail>
-                  <OrgoDesktopPane />
+                  {isBotProduct() ? <RoutinesRailPane /> : <OrgoDesktopPane />}
                 </ResizableComputerRail>
               ) : null}
             </div>

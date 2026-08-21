@@ -207,3 +207,9 @@ native/fts5_cjk/*.so
 # interrupted; consumed by launch-time recovery. Never commit it (was tracked
 # by accident via 3a69e34702, removed in the #72002 salvage).
 .lazy-refresh-incomplete
+
+# Local development planning docs (Botmarchy)
+dev-plans/
+
+# Local peer-review artifacts (Botmarchy)
+peer-reviews/

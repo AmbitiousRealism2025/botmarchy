@@ -18,7 +18,7 @@
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
     "dev:fake-boot": "cross-env HERMES_DESKTOP_BOOT_FAKE=1 HERMES_DESKTOP_BOOT_FAKE_STEP_MS=650 npm run dev",
     "dev:mock": "node scripts/dev-mock.mjs",
-    "dev:bot": "cross-env HERMES_DESKTOP_PRODUCT=bot VITE_HERMES_DESKTOP_PRODUCT=bot HERMES_DESKTOP_APP_NAME=\"Korgo Bot\" npm run dev",
+    "dev:bot": "cross-env HERMES_DESKTOP_PRODUCT=bot VITE_HERMES_DESKTOP_PRODUCT=bot HERMES_DESKTOP_APP_NAME=\"Botmarchy\" npm run dev",
     "dev:renderer": "node scripts/assert-root-install.mjs && npm run clean:renderer && vite --host 127.0.0.1 --port 5174",
     "dev:electron": "tsc -p tsconfig.electron.json --noEmit && wait-on http://127.0.0.1:5174 && node scripts/bundle-electron-main.mjs --dev && cross-env XCURSOR_SIZE=24 HERMES_DESKTOP_DEV_SERVER=http://127.0.0.1:5174 electron .",
     "profile:main": "tsc -p tsconfig.electron.json --noEmit && wait-on http://127.0.0.1:5174 && node scripts/bundle-electron-main.mjs --dev && cross-env XCURSOR_SIZE=24 HERMES_DESKTOP_DEV_SERVER=http://127.0.0.1:5174 electron --inspect=9229 .",
@@ -213,8 +213,8 @@
         "to": "icon.ico"
       },
       {
-        "from": "assets/korgo-bot-icon.ico",
-        "to": "korgo-bot-icon.ico"
+        "from": "assets/botmarchy-icon.ico",
+        "to": "botmarchy-icon.ico"
       },
       {
         "from": "electron/assets/desktop-silk-wallpaper.png",
