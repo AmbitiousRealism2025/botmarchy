@@ -24,7 +24,9 @@ test.describe('bot product shell', () => {
     const page = fixture!.page
     await expect(page.getByRole('heading', { name: 'Where do your bots live?' })).toBeVisible({ timeout: 120_000 })
     const title = await page.title()
-    expect(title).toMatch(/Botmarchy|Hermes|Bots/)
+    // The fork's product name — a regression to the upstream title must fail
+    // (PB-4 review nit: the old /Botmarchy|Hermes|Bots/ regex accepted it).
+    expect(title).toContain('Botmarchy')
     await expect(page.locator('.bot-product-shell')).toBeVisible({
       timeout: 60_000
     })

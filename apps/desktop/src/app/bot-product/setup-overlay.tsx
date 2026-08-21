@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { syncConnectorsToRoster } from '@/app/connectors/provision'
 import { Button } from '@/components/ui/button'
@@ -234,7 +234,7 @@ export function BotSetupOverlay({
   enabled: boolean
   requestGateway: <T = unknown>(method: string, params?: Record<string, unknown>) => Promise<T>
 }) {
-  const [setup, setSetup] = useState<SetupState>({ complete: false, skipped: false, step: 'home' })
+  const [setup, setSetup] = useState<SetupState>(readSetup)
   const [botName, setBotName] = useState('Assistant')
   const [composioKey, setComposioKey] = useState('')
   const [selfhostTarget, setSelfhostTarget] = useState('')
@@ -245,19 +245,25 @@ export function BotSetupOverlay({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
+  // Async-completion guard (PB-4 review F1): a stale connect attempt — after
+  // unmount, or superseded by a newer attempt — must never apply a machine
+  // configuration or advance the wizard. Every awaited hop re-checks both.
+  const mountedRef = useRef(true)
+  const connectAttemptRef = useRef(0)
+
+  useEffect(
+    () => () => {
+      mountedRef.current = false
+    },
+    []
+  )
+
   const [doctor, setDoctor] = useState<{
     provider: boolean
     bot: boolean
     composio: boolean
     computer: boolean
   }>({ provider: false, bot: false, composio: false, computer: false })
-
-  useEffect(() => {
-    const stored = readSetup()
-    setSetup(stored)
-
-    return () => undefined
-  }, [])
 
   useEffect(() => {
     const completeProvider = () => {
@@ -351,11 +357,19 @@ export function BotSetupOverlay({
       sshRemoteProfile: ''
     }
 
+    const attempt = ++connectAttemptRef.current
+
     setBusy(true)
     setError('')
 
     try {
       const tested = await window.hermesDesktop?.testConnectionConfig(payload)
+
+      // Unmounted (dismissed/complete) or superseded: discard the result —
+      // especially before applyConnectionConfig, which rehomes the backend.
+      if (!mountedRef.current || attempt !== connectAttemptRef.current) {
+        return
+      }
 
       // SSH-mode results use `reachable` (not `ok`): success is
       // {reachable: true, sshError: null}; failure carries a stable sshError
@@ -371,13 +385,23 @@ export function BotSetupOverlay({
 
       await window.hermesDesktop?.applyConnectionConfig(payload)
 
+      if (!mountedRef.current || attempt !== connectAttemptRef.current) {
+        return
+      }
+
       setDoctor(current => ({ ...current, computer: true }))
       goToStep('provider')
       announceProviderSetupReady()
     } catch (caught) {
+      if (!mountedRef.current || attempt !== connectAttemptRef.current) {
+        return
+      }
+
       setError(formatSelfhostError(caught, 'Could not connect to that computer.'))
     } finally {
-      setBusy(false)
+      if (mountedRef.current && attempt === connectAttemptRef.current) {
+        setBusy(false)
+      }
     }
   }
 
@@ -590,8 +614,18 @@ export function BotSetupOverlay({
         {error ? (
           <p className="mt-3 max-h-28 overflow-y-auto break-words text-sm text-destructive">{error}</p>
         ) : null}
-        {setup.step !== 'ready' && setup.step !== 'home' ? (
-          <button className="mt-4 text-xs text-muted-foreground underline" onClick={() => finish(true)} type="button">
+        {/* No skip on the selfhost step (PB-4 review F1/F2): finishing the
+            wizard while an SSH attempt is pending could apply a machine
+            config after the overlay is gone, and a pre-provider skip would
+            behave differently before vs after a reload. Back returns to the
+            home choice instead. */}
+        {setup.step !== 'ready' && setup.step !== 'home' && setup.step !== 'selfhost' ? (
+          <button
+            className="mt-4 text-xs text-muted-foreground underline"
+            disabled={busy}
+            onClick={() => finish(true)}
+            type="button"
+          >
             Skip remaining setup
           </button>
         ) : null}
