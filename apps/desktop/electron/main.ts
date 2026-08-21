@@ -12004,6 +12004,48 @@ ipcMain.on('hermes:quick-entry:state', (_event, payload) => {
 
 ipcMain.on('hermes:quick-entry:dismiss', () => hideQuickEntryWindow())
 
+// ── Omarchy OS notification (bot SKU, PB-16 F2) ────────────────────────────
+// Fire the OS notification via Omarchy's own CLI so the notification carries
+// an --exec engage action (a hermes://bot/<profile> deep link — clicking the
+// OS toast lands the user in that bot's chat). Feature-detected: no `omarchy`
+// on PATH → silent no-op (non-Omarchy hosts never notice).
+ipcMain.handle('hermes:os-notify', (_event, payload) => {
+  const title = typeof payload?.title === 'string' ? payload.title : ''
+  const body = typeof payload?.body === 'string' ? payload.body : ''
+  const execCommand = typeof payload?.exec === 'string' ? payload.exec : ''
+
+  if (!title || !isBotProduct()) {
+    return { ok: false }
+  }
+
+  const args = ['notification', 'send', '--app-name', 'Botmarchy', '-g', '⚔']
+
+  if (execCommand && /^botmarchy-focus( |$)/.test(execCommand)) {
+    // Only the vetted engage command is ever exec'd from a notification.
+    args.push('--exec', execCommand)
+  }
+
+  args.push(title)
+
+  if (body) {
+    args.push(body)
+  }
+
+  // Strip LD_LIBRARY_PATH: an AppImage launcher (or any tooling that
+  // preloads its own libs) would otherwise shadow the system libnotify and
+  // notify-send dies with a symbol lookup error in that session.
+  const childEnv = { ...process.env }
+  delete childEnv.LD_LIBRARY_PATH
+
+  execFile('omarchy', args, { timeout: 4000, env: childEnv }, error => {
+    if (error && error.code !== 'ENOENT') {
+      rememberLog(`[os-notify] omarchy notification send failed: ${error.message}`)
+    }
+  })
+
+  return { ok: true }
+})
+
 ipcMain.handle('hermes:openExternal', (_event, url) => {
   if (!openExternalUrl(url)) {
     throw new Error('Invalid external URL')

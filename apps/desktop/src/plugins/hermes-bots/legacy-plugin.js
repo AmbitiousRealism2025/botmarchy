@@ -15,6 +15,7 @@
  * as its own conversation bubble.
  */
 
+import { notifyOsEngage } from './os-engage'
 import {
   atom,
   Button,
@@ -182,6 +183,7 @@ function trackInboundActivity(roster) {
       title: inbound ? `\uD83E\uDD16 New message for ${label}` : `${label} has new activity`,
       message: preview.slice(0, 140) || 'Open the chat to see it.'
     })
+    notifyOsEngage(bot, label, preview, inbound)
   }
 }
 

@@ -239,6 +239,10 @@ declare global {
       setKeepAwake?: (on: boolean) => void
       setPreviewShortcutActive?: (active: boolean) => void
       openExternal: (url: string) => Promise<void>
+      /** Omarchy OS notification (bot SKU): spawns `omarchy notification
+       *  send` with an optional vetted engage --exec command. No-op without
+       *  the CLI — non-Omarchy hosts never notice (PB-16 F2). */
+      osNotify?: (payload: { title: string; body?: string; exec?: string }) => Promise<{ ok: boolean }>
       openPreviewInBrowser?: (url: string) => Promise<void>
       fetchLinkTitle: (url: string) => Promise<string>
       sanitizeWorkspaceCwd: (cwd?: null | string) => Promise<{ cwd: string; sanitized: boolean }>
