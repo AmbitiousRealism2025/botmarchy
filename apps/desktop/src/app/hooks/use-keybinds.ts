@@ -18,6 +18,7 @@ import { contributedKeybindHandler, PROFILE_SLOT_COUNT, SESSION_SLOT_COUNT } fro
 import { comboAllowedInInput, comboFromEvent, isEditableTarget } from '@/lib/keybinds/combo'
 import { composerFocusKeysAllowed, isComposerFocusSoftCombo, typeToFocusChar } from '@/lib/keybinds/composer-focus-keys'
 import { keybindActionAllowed } from '@/lib/keybinds/context-claim'
+import { isBotProduct } from '@/lib/product'
 import { openWorktreeDialog } from '@/store/coding-status'
 import { toggleCommandPalette } from '@/store/command-palette'
 import {
@@ -263,7 +264,10 @@ export function useKeybinds(deps: KeybindRuntimeDeps): void {
     'view.findNext': findNextMatch,
     'view.findPrevious': findPreviousMatch,
 
-    'appearance.toggleMode': () => setMode(resolvedMode === 'dark' ? 'light' : 'dark'),
+    // Dark-only product (charter principle 2): the light/dark chord is a
+    // no-op in the bot SKU — nothing to toggle, and it must never flip a
+    // persisted mode that a future generic-SKU run would honor.
+    ...(isBotProduct() ? {} : { 'appearance.toggleMode': () => setMode(resolvedMode === 'dark' ? 'light' : 'dark') }),
 
     'profile.default': switchToDefaultProfile,
     ...profileSwitchHandlers,

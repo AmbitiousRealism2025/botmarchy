@@ -202,6 +202,15 @@ contextBridge.exposeInMainWorld('hermesDesktop', {
   setActiveWork: payload => ipcRenderer.send('hermes:active-work', payload),
   setTitleBarTheme: payload => ipcRenderer.send('hermes:titlebar-theme', payload),
   setNativeTheme: mode => ipcRenderer.send('hermes:native-theme', mode),
+  omarchyTheme: {
+    get: () => ipcRenderer.invoke('hermes:omarchy-theme:get'),
+    changed: callback => {
+      const listener = (_event: unknown, tokens: unknown) => callback(tokens)
+      ipcRenderer.on('hermes:omarchy-theme', listener)
+
+      return () => ipcRenderer.removeListener('hermes:omarchy-theme', listener)
+    }
+  },
   setTranslucency: payload => ipcRenderer.send('hermes:translucency', payload),
   setKeepAwake: on => ipcRenderer.send('hermes:keep-awake', on),
   setPreviewShortcutActive: active => ipcRenderer.send('hermes:previewShortcutActive', Boolean(active)),

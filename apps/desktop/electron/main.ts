@@ -180,6 +180,7 @@ import {
 import { runNativeLogin } from './native-oauth-login'
 import { loadNativeTokenSet, type NativeTokenStoreIo, persistNativeTokenSet } from './native-token-store'
 import { serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
+import { createOmarchyThemeService, type OmarchyGarnishTokens, omarchyThemePaths } from './omarchy-theme'
 import {
   beginOrgoTailscaleSetup,
   BOT_ORGO_LEGACY_WORKSPACE_NAME,
@@ -11840,6 +11841,39 @@ ipcMain.on('hermes:titlebar-theme', (_event, payload) => {
 })
 
 // Pin the native appearance to the app theme (see NATIVE_THEME_CONFIG_PATH).
+// ─── Omarchy theme garnish (bot SKU, PB-6) ───────────────────────────────
+// Resolve the desktop's active Omarchy theme accent and push it to every
+// renderer window as garnish tokens (selection / focus / active markers /
+// primary buttons — charter design principle 2: garnish, never a full
+// re-theme). `omarchy theme set` REPLACES the current/theme directory, so the
+// watch sits on `current/` and re-resolves on the swap.
+let omarchyThemeService: ReturnType<typeof createOmarchyThemeService> | null = null
+
+function emitOmarchyGarnish(tokens: OmarchyGarnishTokens | null) {
+  for (const window of BrowserWindow.getAllWindows()) {
+    window.webContents.send('hermes:omarchy-theme', tokens)
+  }
+}
+
+function setupOmarchyThemeGarnish() {
+  if (!isBotProduct() || omarchyThemeService) {
+    return
+  }
+
+  omarchyThemeService = createOmarchyThemeService({
+    execFile,
+    readFile: (p, enc) => fs.readFileSync(p, enc),
+    exists: p => fs.existsSync(p),
+    watch: (dir, listener) => fs.watch(dir, { persistent: false }, listener),
+    paths: omarchyThemePaths(os.homedir()),
+    log: message => rememberLog(message),
+    onUpdate: emitOmarchyGarnish
+  })
+  omarchyThemeService.start()
+}
+
+ipcMain.handle('hermes:omarchy-theme:get', () => omarchyThemeService?.getTokens() ?? null)
+
 ipcMain.on('hermes:native-theme', (_event, mode) => {
   if (!THEME_SOURCES.has(mode)) {
     return
@@ -13101,6 +13135,10 @@ app.whenReady().then(() => {
     passwordStoreSwitch: app.commandLine.getSwitchValue('password-store'),
     safeStorageApi: safeStorage
   })
+
+  // Bot SKU: Omarchy theme garnish. Early so the renderer's first
+  // `omarchyTheme.get()` already carries the resolved accent.
+  setupOmarchyThemeGarnish()
 
   if (IS_MAC) {
     Menu.setApplicationMenu(buildApplicationMenu())

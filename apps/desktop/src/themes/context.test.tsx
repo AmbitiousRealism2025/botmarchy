@@ -1,8 +1,8 @@
 import { act, cleanup, render } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { __resetBackendSkinSync, ingestBackendSkin } from './backend-sync'
-import { ThemeProvider, useTheme } from './context'
+import { resolveMode, ThemeProvider, useTheme } from './context'
 
 // The live-authoring loop: Hermes writes/edits one skin file and every surface
 // repaints. An in-place edit keeps the NAME — only the palette moves.
@@ -159,5 +159,24 @@ describe('ThemeProvider ← backend skin sync', () => {
       ingestBackendSkin({ name: 'forest', colors: { background: '#001100', ui_text: '#66ff66' } }, { apply: false })
     )
     expect(cssVar('--theme-foreground')).toBe('#ff9f0a')
+  })
+})
+
+describe('resolveMode — SKU mode policy', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('generic SKU honors light/dark/system as before', () => {
+    expect(resolveMode('light')).toBe('light')
+    expect(resolveMode('dark')).toBe('dark')
+    expect(resolveMode('system', true)).toBe('dark')
+    expect(resolveMode('system', false)).toBe('light')
+  })
+
+  it('bot SKU is dark-only: every stored mode and OS preference resolves dark (charter principle 2)', () => {
+    vi.stubEnv('VITE_HERMES_DESKTOP_PRODUCT', 'bot')
+
+    expect(resolveMode('light')).toBe('dark')
+    expect(resolveMode('system', false)).toBe('dark')
+    expect(resolveMode('dark')).toBe('dark')
   })
 })

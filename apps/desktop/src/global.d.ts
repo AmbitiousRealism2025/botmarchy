@@ -228,6 +228,13 @@ declare global {
       setActiveWork?: (payload: HermesActiveWork) => void
       setTitleBarTheme?: (payload: HermesTitleBarTheme) => void
       setNativeTheme?: (mode: 'dark' | 'light' | 'system') => void
+      /** Omarchy theme garnish (bot SKU): accent tokens resolved by the main
+       *  process from the desktop's active Omarchy theme. `changed` pushes
+       *  live updates when the user switches themes. */
+      omarchyTheme?: {
+        get: () => Promise<{ accent: string; accentForeground: string; themeName: string } | null>
+        changed: (callback: (tokens: { accent: string; accentForeground: string; themeName: string } | null) => void) => () => void
+      }
       setTranslucency?: (payload: { intensity: number }) => void
       setKeepAwake?: (on: boolean) => void
       setPreviewShortcutActive?: (active: boolean) => void

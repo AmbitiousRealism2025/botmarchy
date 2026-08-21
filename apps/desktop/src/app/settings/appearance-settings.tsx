@@ -9,6 +9,7 @@ import type { DesktopMarketplaceSearchItem } from '@/global'
 import { useI18n } from '@/i18n'
 import { triggerHaptic } from '@/lib/haptics'
 import { Check, Download, Loader2, Palette, Trash2 } from '@/lib/icons'
+import { isBotProduct } from '@/lib/product'
 import { selectableCardClass } from '@/lib/selectable-card'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
@@ -403,14 +404,19 @@ export function AppearanceSettings() {
             title={
               <div className="flex items-center justify-between gap-3">
                 <span>{a.themeTitle}</span>
-                <SegmentedControl
-                  onChange={id => {
-                    triggerHaptic('crisp')
-                    setMode(id)
-                  }}
-                  options={modeOptions}
-                  value={mode}
-                />
+                {/* Dark-only product (charter principle 2): no light/system
+                    switch exists in the bot SKU, so light mode is unreachable
+                    from any surface. */}
+                {!isBotProduct() && (
+                  <SegmentedControl
+                    onChange={id => {
+                      triggerHaptic('crisp')
+                      setMode(id)
+                    }}
+                    options={modeOptions}
+                    value={mode}
+                  />
+                )}
               </div>
             }
             wide

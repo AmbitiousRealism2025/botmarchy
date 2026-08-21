@@ -12,8 +12,10 @@
 import { useStore } from '@nanostores/react'
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
+import { applyBotmarchyGarnish, initOmarchyThemeBridge } from '@/app/bot-product/omarchy-theme'
 import { $registryVersion } from '@/contrib/registry'
 import { matchesQuery, useMediaQuery } from '@/hooks/use-media-query'
+import { isBotProduct } from '@/lib/product'
 import { persistString, persistStringRecord, storedString, storedStringRecord } from '@/lib/storage'
 import { $activeGatewayProfile, normalizeProfileKey } from '@/store/profile'
 
@@ -44,8 +46,13 @@ export type ThemeMode = 'light' | 'dark' | 'system'
 
 const INJECTED_FONT_URLS = new Set<string>()
 
-const resolveMode = (mode: ThemeMode, systemDark = matchesQuery('(prefers-color-scheme: dark)')): 'light' | 'dark' =>
-  mode === 'system' ? (systemDark ? 'dark' : 'light') : mode
+/** The bot product is dark-only (charter design principle 2): the stored
+ *  per-profile mode and the OS preference are both ignored, so light mode is
+ *  unreachable no matter what a pre-fork install had persisted. */
+export const resolveMode = (
+  mode: ThemeMode,
+  systemDark = matchesQuery('(prefers-color-scheme: dark)')
+): 'light' | 'dark' => (isBotProduct() ? 'dark' : mode === 'system' ? (systemDark ? 'dark' : 'light') : mode)
 
 const normalizeSkin = (name: string | null): string =>
   name && resolveTheme(name) && !RETIRED_SKINS.has(name) ? name : DEFAULT_SKIN_NAME
@@ -447,6 +454,14 @@ function applyTheme(theme: DesktopTheme, mode: 'light' | 'dark') {
     }
   }
 
+  // Bot SKU: Omarchy garnish rides ON TOP of the palette (accent-driven
+  // selection / focus / active markers / primary buttons). Applied last so
+  // no palette application — skin switch, orgo surface overrides, profile
+  // change — can clobber it. No-op in the generic Hermes SKU.
+  if (isBotProduct()) {
+    applyBotmarchyGarnish(root)
+  }
+
   const chromeBg = usesOrgoSurfaces ? c.background : chromeBackground(c.background, isDark)
 
   window.hermesDesktop?.setTitleBarTheme?.({
@@ -479,14 +494,20 @@ function applyTheme(theme: DesktopTheme, mode: 'light' | 'dark') {
 // (macOS vibrancy material, titlebar, pre-paint background) matches the app
 // theme instead of the OS appearance. An explicit light/dark pick is forced;
 // 'system' stays 'system' so prefers-color-scheme keeps tracking the OS.
+// The bot SKU pins 'dark' — a light OS must never leak into the window chrome
+// of a dark-only product.
 const syncNativeTheme = (pref: ThemeMode, rendered: 'light' | 'dark') =>
-  window.hermesDesktop?.setNativeTheme?.(pref === 'system' ? 'system' : rendered)
+  window.hermesDesktop?.setNativeTheme?.(isBotProduct() ? 'dark' : pref === 'system' ? 'system' : rendered)
 
 // Boot-time paint to avoid a flash before <ThemeProvider> mounts. Use the last
 // active profile's appearance so a non-default profile relaunch paints its own
 // skin + light/dark mode.
 if (typeof window !== 'undefined') {
   ensureOrgoBlackMigration()
+  // Bot SKU: connect to the main-process Omarchy theme source (accent tokens
+  // + live theme-switch updates) before the boot paint so the garnish lands
+  // as early as possible.
+  initOmarchyThemeBridge()
   const profile = readBootProfileKey()
   const pref = modePref.resolve(profile)
   const resolved = resolveMode(pref)
