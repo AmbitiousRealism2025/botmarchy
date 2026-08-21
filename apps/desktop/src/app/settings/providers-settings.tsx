@@ -18,6 +18,7 @@ import { SearchField } from '@/components/ui/search-field'
 import { disconnectOAuthProvider, listOAuthProviders } from '@/hermes'
 import { useI18n } from '@/i18n'
 import { Check, ChevronDown, ChevronRight, KeyRound, Loader2, Terminal, Trash2 } from '@/lib/icons'
+import { isBotProduct } from '@/lib/product'
 import { normalize } from '@/lib/text'
 import { cn } from '@/lib/utils'
 import { notify, notifyError } from '@/store/notifications'
@@ -32,7 +33,13 @@ import { SettingsContent, SettingsSkeleton } from './primitives'
 
 // The embedded terminal (and thus the "run disconnect command" path) only
 // exists in the Electron desktop shell, not the web dashboard.
-const canRunInTerminal = () => typeof window !== 'undefined' && Boolean(window.hermesDesktop?.terminal)
+// Composite review P2.9: the terminal pane is registered only for the
+// generic SKU (controller.tsx) — in the bot SKU $terminalInjection has no
+// consumer, so a "disconnect via terminal" button here would toast
+// "running in terminal" while nothing runs. Both first-class bot providers
+// (openai-codex, xai-oauth) are exactly this disconnect shape.
+const canRunInTerminal = () =>
+  !isBotProduct() && typeof window !== 'undefined' && Boolean(window.hermesDesktop?.terminal)
 
 // Parallel group headers ("Connected", "Other providers") so the expanded list
 // reads as its own section instead of bleeding into the connected group.

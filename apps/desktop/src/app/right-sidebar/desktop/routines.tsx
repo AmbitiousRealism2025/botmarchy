@@ -110,7 +110,7 @@ export function AgentRoutines({ activeProfile, onEdit }: AgentRoutinesProps) {
   if (!orderedJobs.length) {
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 px-5 pb-8 text-center">
-        <p className="max-w-48 text-[0.68rem] leading-4 text-(--ui-text-quaternary)">
+        <p className="max-w-48 text-[0.68rem] leading-4 text-(--ui-text-tertiary)">
           Routines are recurring tasks {formatProfileName(activeProfile)} runs on a schedule.
         </p>
         <Button onClick={() => onEdit(null)} size="xs" variant="secondary">
@@ -149,7 +149,7 @@ export function AgentRoutines({ activeProfile, onEdit }: AgentRoutinesProps) {
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[0.72rem] font-medium text-(--ui-text-primary)">{jobTitle(job)}</span>
-                <span className="mt-0.5 block truncate text-[0.64rem] text-(--ui-text-quaternary)">
+                <span className="mt-0.5 block truncate text-[0.64rem] text-(--ui-text-tertiary)">
                   {Number.isNaN(nextRun) ? scheduleLabel(job) : relativeTime(nextRun)}
                 </span>
               </span>
@@ -181,7 +181,9 @@ export function RoutineEditor({ job, onClose }: RoutineEditorProps) {
   const [saving, setSaving] = useState(false)
   const [running, setRunning] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [runs, setRuns] = useState<SessionInfo[] | null>(job ? null : [])
+  // null = loading, [] = genuinely empty, 'error' = the fetch failed
+  // (composite review P3.17: a failed load used to render "No runs yet").
+  const [runs, setRuns] = useState<SessionInfo[] | null | 'error'>(job ? null : [])
   const schedule = schedulePreset === CUSTOM_SCHEDULE ? customSchedule.trim() : schedulePreset
 
   useEffect(() => {
@@ -199,7 +201,7 @@ export function RoutineEditor({ job, onClose }: RoutineEditorProps) {
       })
       .catch(() => {
         if (!cancelled) {
-          setRuns([])
+          setRuns('error')
         }
       })
 
@@ -355,7 +357,7 @@ export function RoutineEditor({ job, onClose }: RoutineEditorProps) {
             </div>
             {runs === null ? (
               <Loader className="size-4" label="Loading run history" type="lemniscate-bloom" />
-            ) : runs.length ? (
+            ) : runs !== 'error' && runs.length ? (
               <div className="space-y-1">
                 {runs.map(run => (
                   <div className="rounded-md px-2 py-1.5 text-[0.65rem] text-(--ui-text-tertiary)" key={run.id}>
@@ -364,7 +366,9 @@ export function RoutineEditor({ job, onClose }: RoutineEditorProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-[0.65rem] text-(--ui-text-quaternary)">No runs yet.</p>
+              <p className="text-[0.65rem] text-(--ui-text-quaternary)">
+                {runs === 'error' ? 'Could not load run history.' : 'No runs yet.'}
+              </p>
             )}
           </section>
         ) : null}

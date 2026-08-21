@@ -53,10 +53,32 @@ const SESSION_SLOT_ACTIONS: KeybindActionMeta[] = Array.from({ length: SESSION_S
   defaults: [`ctrl+${i + 1}`]
 }))
 
-// Keybinds the dark-only bot SKU does not ship (charter principle 2, review
-// F5): the light/dark toggle has no modes to switch, and registering the
-// metadata would show a dead, rebindable binding in the hotkey panel.
-const SKU_HIDDEN_ACTIONS = new Set(isBotProduct() ? ['appearance.toggleMode'] : [])
+// Keybinds the dark-only bot SKU does not ship. Two groups:
+//  - appearance.toggleMode (charter principle 2, review F5): no modes to
+//    switch; a dead, rebindable binding in the hotkey panel.
+//  - pane-scoped actions whose panes are absent from BOT_TREE (composite
+//    review P2.8): the bot layout is roster + workspace only — the sidebar,
+//    files, review, terminal, statusbar, and flip bindings all advertised
+//    in the shortcuts panel while resolving to nothing. mod+j
+//    (view.toggleRightSidebar) is NOT hidden: in the bot SKU it toggles the
+//    routines rail (see use-keybinds).
+const SKU_HIDDEN_ACTIONS = new Set(
+  isBotProduct()
+    ? [
+        'appearance.toggleMode',
+        'view.toggleSidebar',
+        'view.toggleStatusbar',
+        'view.toggleReview',
+        'view.showFiles',
+        'view.showTerminal',
+        'view.newTerminal',
+        'view.nextTerminal',
+        'view.prevTerminal',
+        'view.closeTerminal',
+        'view.flipPanes'
+      ]
+    : []
+)
 
 export const KEYBIND_ACTIONS: readonly KeybindActionMeta[] = (
   [

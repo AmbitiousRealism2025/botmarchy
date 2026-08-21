@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router'
 import { closeActiveTab } from '@/app/chat/close-tab'
 import { hudTargetSessionId } from '@/app/hud/handoff'
 import { setTerminalTakeover } from '@/app/right-sidebar/store'
+import { $orgoDesktopOpen, setOrgoDesktopOpen } from '@/app/right-sidebar/store'
 import { closeActiveTerminal, createTerminal, cycleTerminal } from '@/app/right-sidebar/terminal/terminals'
 import {
   activateTreeTabSlot,
@@ -227,8 +228,12 @@ export function useKeybinds(deps: KeybindRuntimeDeps): void {
     // ⌘J toggles the right sidebar — but a layout with no right side (e.g.
     // terminal-on-bottom) would leave it a dead key, so it falls back to the
     // terminal there. The single "secondary panel" toggle.
-    'view.toggleRightSidebar': () =>
-      layoutHasRootSide('right') ? toggleFileBrowserOpen() : togglePaneVisible('terminal'),
+    // Bot SKU (composite review P3.1): the right rail IS the routines rail —
+    // the terminal/panes fallbacks target panes this SKU doesn't mount.
+    'view.toggleRightSidebar': isBotProduct()
+      ? () => setOrgoDesktopOpen(!$orgoDesktopOpen.get())
+      : () =>
+          layoutHasRootSide('right') ? toggleFileBrowserOpen() : togglePaneVisible('terminal'),
     'view.toggleReview': toggleReview,
     'view.toggleStatusbar': toggleStatusbarVisible,
     'view.showFiles': showFiles,

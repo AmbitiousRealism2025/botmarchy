@@ -16,6 +16,8 @@ function LocationProbe() {
   return <div data-testid="location">{location.pathname}{location.search}</div>
 }
 
+const requiredConnExtras = { logs: [], windowButtonPosition: { x: 0, y: 0 } }
+
 describe('BotConnectionChip', () => {
   beforeEach(() => {
     $gatewayState.set('idle')
@@ -27,7 +29,8 @@ describe('BotConnectionChip', () => {
       remoteHost: 'omarchy-1.tail9106ac.ts.net',
       remoteKind: 'ssh',
       token: '',
-      wsUrl: ''
+      wsUrl: '',
+      ...requiredConnExtras
     })
   })
 
@@ -54,7 +57,8 @@ describe('BotConnectionChip', () => {
       mode: 'local',
       nativeOverlayWidth: 0,
       token: '',
-      wsUrl: ''
+      wsUrl: '',
+      ...requiredConnExtras
     })
 
     render(

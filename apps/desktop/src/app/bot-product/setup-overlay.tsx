@@ -19,11 +19,21 @@ export const BOT_FIRST_PROFILE_EVENT = 'hermes-bots:first-profile'
 
 type SetupStep = 'bot' | 'composio' | 'home' | 'provider' | 'ready' | 'selfhost'
 
+interface SetupDoctorFlags {
+  bot: boolean
+  composio: boolean
+  computer: boolean
+  provider: boolean
+}
+
 interface SetupState {
   botModel?: string
   botProfile?: string
   botProvider?: string
   complete: boolean
+  /** P2.13: persisted so a reload while parked on 'ready' can't render a
+   *  false report (rows unchecked, wrong home label). */
+  doctor?: SetupDoctorFlags
   skipped: boolean
   step: SetupStep
 }
@@ -122,6 +132,16 @@ function readSetup(): SetupState {
 
     const parsed = JSON.parse(raw) as Partial<SetupState>
 
+    const doctorFlags =
+      parsed.doctor && typeof parsed.doctor === 'object'
+        ? {
+            bot: Boolean(parsed.doctor.bot),
+            composio: Boolean(parsed.doctor.composio),
+            computer: Boolean(parsed.doctor.computer),
+            provider: Boolean(parsed.doctor.provider)
+          }
+        : undefined
+
     // Legacy states from the Orgo-first wizard (orgo/tailscale) are remapped:
     // v1 Botmarchy is local-only (charter), so onboarding always restarts
     // from the home-choice step.
@@ -140,6 +160,7 @@ function readSetup(): SetupState {
       botProfile: typeof parsed.botProfile === 'string' ? parsed.botProfile : undefined,
       botProvider: typeof parsed.botProvider === 'string' ? parsed.botProvider : undefined,
       complete: Boolean(parsed.complete),
+      doctor: doctorFlags,
       skipped: Boolean(parsed.skipped),
       step
     }
@@ -260,12 +281,27 @@ export function BotSetupOverlay({
     []
   )
 
-  const [doctor, setDoctor] = useState<{
-    provider: boolean
-    bot: boolean
-    composio: boolean
-    computer: boolean
-  }>({ provider: false, bot: false, composio: false, computer: false })
+  const [doctor, setDoctorRaw] = useState<SetupDoctorFlags>(
+    () => setup.doctor ?? { provider: false, bot: false, composio: false, computer: false }
+  )
+
+  // P2.13: every doctor transition persists with the setup state — a reload
+  // while parked on 'ready' used to reset the flags and render a false
+  // report (all rows unchecked, "Running on this machine" for an SSH box).
+  const setDoctor = (update: SetupDoctorFlags | ((current: SetupDoctorFlags) => SetupDoctorFlags)) => {
+    setDoctorRaw(current => {
+      const next = typeof update === 'function' ? update(current) : update
+
+      setSetup(state => {
+        const persisted: SetupState = { ...state, doctor: next }
+        writeSetup(persisted)
+
+        return persisted
+      })
+
+      return next
+    })
+  }
 
   useEffect(() => {
     const completeProvider = () => {

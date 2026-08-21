@@ -1026,9 +1026,11 @@ export function ContribWiring({ children }: { children: ReactNode }) {
   // Pane-registered tools (preview's monitor/devtools cluster) anchor flush
   // against the static system cluster — in the tree layout the titlebar band
   // sits ABOVE the grid, so AppShell's pane-width anchoring doesn't apply.
-  const SYSTEM_TOOL_COUNT = 5
+  // P2.7: derived from the SAME filtered cluster that renders (published by
+  // TitlebarControls as --titlebar-system-tool-count), not a hardcoded 5 —
+  // the bot SKU paints 3 buttons there, the generic 5 (+ its sidebar tool).
   const paneToolCount = rightTitlebarTools.filter(tool => !tool.hidden).length
-  const systemToolsWidth = titlebarToolsWidthCss(SYSTEM_TOOL_COUNT)
+  const systemToolsWidth = 'calc(var(--titlebar-system-tool-count, 5) * var(--titlebar-control-size))'
 
   const titlebarToolsWidth =
     paneToolCount > 0 ? `calc(${systemToolsWidth} + ${titlebarToolsWidthCss(paneToolCount)})` : systemToolsWidth

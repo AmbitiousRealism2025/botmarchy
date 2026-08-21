@@ -270,6 +270,16 @@ export function TitlebarControls({ leftTools = [], tools = [], onOpenSettings }:
 
   const visibleSystemTools = systemTools.filter(tool => !tool.hidden)
   const visiblePaneTools = tools.filter(tool => !tool.hidden)
+  // Composite review P2.6/P2.7: the right cluster renders exactly these
+  // buttons — the previously unfiltered rightSidebarTool was a visible,
+  // labeled no-op in the bot SKU, and the layout's reserved width assumed a
+  // hardcoded count. Publish the REAL rendered count so the wiring layer
+  // derives --titlebar-tools-width from the same filter that paints.
+  const rightClusterCount = visibleSystemTools.length + (rightSidebarTool.hidden ? 0 : 1)
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--titlebar-system-tool-count', String(rightClusterCount))
+  })
 
   return (
     <>
@@ -316,7 +326,7 @@ export function TitlebarControls({ leftTools = [], tools = [], onOpenSettings }:
         {visibleSystemTools.map(tool => (
           <TitlebarToolButton key={tool.id} navigate={navigate} tool={tool} />
         ))}
-        <TitlebarToolButton navigate={navigate} tool={rightSidebarTool} />
+        {!rightSidebarTool.hidden ? <TitlebarToolButton navigate={navigate} tool={rightSidebarTool} /> : null}
       </div>
     </>
   )

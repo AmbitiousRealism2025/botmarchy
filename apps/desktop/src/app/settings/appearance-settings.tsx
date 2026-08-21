@@ -311,11 +311,18 @@ export function AppearanceSettings() {
         </p>
 
         <div className="mt-2">
-          <ListRow
-            action={<LanguageSwitcher />}
-            description={isSavingLocale ? t.language.saving : t.language.description}
-            title={t.language.label}
-          />
+          {/* P2.11 (composite review): v1 bot surfaces are English-only
+              (recorded decision — routing the wizard/routines/roster copy
+              through the 5-locale catalog is a v2 task). Hiding the
+              switcher keeps the product from promising a localization the
+              bot SKU doesn't deliver; the generic SKU keeps it. */}
+          {!isBotProduct() ? (
+            <ListRow
+              action={<LanguageSwitcher />}
+              description={isSavingLocale ? t.language.saving : t.language.description}
+              title={t.language.label}
+            />
+          ) : null}
 
           <ListRow
             below={
