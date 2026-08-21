@@ -6,6 +6,11 @@ description: "How to update Hermes Agent to the latest version or uninstall it"
 
 # Updating & Uninstalling
 
+> **Botmarchy fork note:** this page is inherited upstream documentation.
+> A Botmarchy install never updates via `hermes update` — the app and the
+> pinned remote Hermes release move together through Botmarchy releases
+> (CHARTER.md §Fork topology).
+
 ## Updating
 
 Update to the latest version with a single command:

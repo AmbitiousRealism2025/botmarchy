@@ -98,6 +98,7 @@ Panel {
   function moveCursor(delta) {
     cursorActive = true
     selectedIndex = clampIndex(selectedIndex + delta)
+    rosterFlick.followSelection()
   }
 
   function engage(index) {
@@ -452,6 +453,8 @@ Panel {
         // header — brand mark + plain product name (QW3: the court
         // vocabulary lives in the body copy, the header reads as the app).
         Row {
+          id: headerRow
+
           width: parent.width
           spacing: Style.space(8)
 
@@ -479,91 +482,119 @@ Panel {
           }
         }
 
-        // roster rows
-        Repeater {
-          model: root.bots
+        // roster rows (P3.21: Flickable — a long court must not clip, and
+        // the keyboard cursor keeps itself in view)
+        Flickable {
+          id: rosterFlick
 
-          delegate: Rectangle {
-            required property var modelData
-            required property int index
+          clip: true
+          width: parent.width
+          height: rosterColumn.height - headerRow.height - Style.space(4)
+          contentWidth: width
+          contentHeight: rosterRows.implicitHeight + Style.space(4)
+          interactive: true
+
+          // Follow the selection: whenever the cursor moves past the visible
+          // band, scroll it into view (top-weighted like every list).
+          function followSelection() {
+            const row = Style.space(44) + Style.space(4)
+            const y = root.selectedIndex * row
+            if (y < contentY) contentY = y
+            else if (y + row > contentY + height - Style.space(4)) contentY = y + row - height + Style.space(4)
+          }
+
+          Column {
+            id: rosterRows
 
             width: parent.width
-            height: Style.space(44)
-            radius: Style.cornerRadius
-            color: mouse.hovered || (root.cursorActive && root.selectedIndex === index)
-              ? Style.selectedFillFor(Color.popups.text, Color.accent)
-              : "transparent"
+            spacing: Style.space(4)
 
-            Row {
-              anchors.fill: parent
-              anchors.leftMargin: Style.space(8)
-              anchors.rightMargin: Style.space(8)
-              spacing: Style.space(8)
+            Repeater {
+              model: root.bots
 
-              // Mark: ▶ working (strongest); accent dot = idle with news
-              // (the decide layer's unread signal, MP-4); dim ● = idle/seen.
-              Loader {
-                active: !modelData.working && modelData.has_new === true
-                sourceComponent: Component {
-                  Rectangle {
-                    width: Style.space(7); height: Style.space(7)
-                    radius: width / 2
-                    color: Color.accent
-                    anchors.verticalCenter: parent.verticalCenter
+              delegate: Rectangle {
+              required property var modelData
+              required property int index
+
+              width: parent.width
+              height: Style.space(44)
+              radius: Style.cornerRadius
+              color: mouse.hovered || (root.cursorActive && root.selectedIndex === index)
+                ? Style.selectedFillFor(Color.popups.text, Color.accent)
+                : "transparent"
+
+              Row {
+                anchors.fill: parent
+                anchors.leftMargin: Style.space(8)
+                anchors.rightMargin: Style.space(8)
+                spacing: Style.space(8)
+
+                // Mark: ▶ working (strongest); accent dot = idle with news
+                // (the decide layer's unread signal, MP-4); dim ● = idle/seen.
+                Loader {
+                  active: !modelData.working && modelData.has_new === true
+                  sourceComponent: Component {
+                    Rectangle {
+                      width: Style.space(7); height: Style.space(7)
+                      radius: width / 2
+                      color: Color.accent
+                      anchors.verticalCenter: parent.verticalCenter
+                    }
                   }
                 }
+                Text {
+                  visible: modelData.working || modelData.has_new !== true
+                  text: modelData.working ? "▶" : "●"
+                  color: modelData.working ? Color.bar.active : root.dim
+                  font.pixelSize: Style.font.body
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+                // Avatar chip (MP-5): the bot's own color from profile
+                // ui_meta — the roster reads as the same court as the app.
+                // Absent meta falls back to a muted chip so rows stay aligned.
+                Rectangle {
+                  width: Style.space(14); height: Style.space(14)
+                  radius: root.chipRadius(modelData.avatar ? modelData.avatar.shape : "")
+                  color: modelData.avatar && modelData.avatar.color
+                    ? modelData.avatar.color
+                    : Qt.alpha(root.dim, 0.45)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                  text: modelData.name
+                  color: Color.popups.text
+                  font.pixelSize: Style.font.body
+                  font.bold: true
+                  elide: Text.ElideRight
+                  width: parent.width * 0.28
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                  text: root.agoText(modelData.last_activity)
+                  color: root.dim
+                  font.pixelSize: Style.font.bodySmall
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                  text: modelData.last_message || ""
+                  color: root.dim
+                  font.pixelSize: Style.font.bodySmall
+                  elide: Text.ElideRight
+                  width: parent.width - Style.space(8) * 3 - parent.children[0].width - parent.children[1].width - parent.children[2].width - Style.space(16)
+                  anchors.verticalCenter: parent.verticalCenter
+                }
               }
-              Text {
-                visible: modelData.working || modelData.has_new !== true
-                text: modelData.working ? "▶" : "●"
-                color: modelData.working ? Color.bar.active : root.dim
-                font.pixelSize: Style.font.body
-                anchors.verticalCenter: parent.verticalCenter
-              }
-              // Avatar chip (MP-5): the bot's own color from profile
-              // ui_meta — the roster reads as the same court as the app.
-              // Absent meta falls back to a muted chip so rows stay aligned.
-              Rectangle {
-                width: Style.space(14); height: Style.space(14)
-                radius: root.chipRadius(modelData.avatar ? modelData.avatar.shape : "")
-                color: modelData.avatar && modelData.avatar.color
-                  ? modelData.avatar.color
-                  : Qt.alpha(root.dim, 0.45)
-                anchors.verticalCenter: parent.verticalCenter
-              }
-              Text {
-                text: modelData.name
-                color: Color.popups.text
-                font.pixelSize: Style.font.body
-                font.bold: true
-                elide: Text.ElideRight
-                width: parent.width * 0.28
-                anchors.verticalCenter: parent.verticalCenter
-              }
-              Text {
-                text: root.agoText(modelData.last_activity)
-                color: root.dim
-                font.pixelSize: Style.font.bodySmall
-                anchors.verticalCenter: parent.verticalCenter
-              }
-              Text {
-                text: modelData.last_message || ""
-                color: root.dim
-                font.pixelSize: Style.font.bodySmall
-                elide: Text.ElideRight
-                width: parent.width - Style.space(8) * 3 - parent.children[0].width - parent.children[1].width - parent.children[2].width - Style.space(16)
-                anchors.verticalCenter: parent.verticalCenter
-              }
-            }
 
-            MouseArea {
-              id: mouse
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: {
-                root.selectedIndex = index
-                root.engage(index)
+              MouseArea {
+                id: mouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: {
+                  root.selectedIndex = index
+                  root.engage(index)
+                }
+              }
               }
             }
           }

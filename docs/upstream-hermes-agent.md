@@ -113,7 +113,15 @@ hermes config get   # Print individual config values
 hermes gateway      # Start the messaging gateway (Telegram, Discord, etc.)
 hermes setup        # Run the full setup wizard (configures everything at once)
 hermes claw migrate # Migrate from OpenClaw (if coming from OpenClaw)
-hermes update       # Update to the latest version
+hermes update       # Update to the latest version (⚠ NOT for Botmarchy — see below)
+hermes doctor       # Diagnose any issues
+```
+
+> **Botmarchy fork note:** never run generic `hermes update` against a
+> Botmarchy install or its gateway boxes — Botmarchy's client and the
+> compatibility-pinned remote Hermes release move together, through
+> Botmarchy's own releases. The generic instructions above are upstream
+> reference for the tracking relationship (see CHARTER.md §Fork topology).
 hermes doctor       # Diagnose any issues
 ```
 

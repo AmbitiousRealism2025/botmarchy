@@ -253,6 +253,28 @@ function movePinnedBot(name, beforeName = null) {
   }
 }
 
+/** P3.18: move a pinned bot one slot earlier/later (keyboard reorder). */
+function movePinnedBotRelative(name, delta) {
+  const current = $pinnedBots.get()
+  const from = current.indexOf(name)
+
+  if (from === -1) {
+    return
+  }
+
+  const to = from + delta
+
+  if (to < 0 || to >= current.length) {
+    return
+  }
+
+  const next = [...current]
+
+  ;[next[from], next[to]] = [next[to], next[from]]
+  haptic('selection')
+  savePinnedBots(next)
+}
+
 function unpinBot(name) {
   const current = $pinnedBots.get()
 
@@ -1307,7 +1329,20 @@ function BotFace({ shape, color, image, size = 36, name = 'agent', mood = 'idle'
   const [blink, setBlink] = useState(false)
   const [scanX, setScanX] = useState(0)
 
+  // Composite review P3.16: JS-driven animation respects the OS
+  // reduced-motion preference (the CSS blanket only covers CSS animation).
+  // Reduced motion → static open eyes; the face still reads, it just
+  // doesn't move.
+  const reducedMotion =
+    typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : false
+
   useEffect(() => {
+    if (reducedMotion) {
+      return
+    }
+
     if (mood === 'work') {
       // scan: pupils sweep left → right → left
       let dir = 1
@@ -3083,7 +3118,7 @@ function BotRow({ bot, onEdit, onDelete }) {
               }),
               unread
                 ? jsx('span', {
-                    className: 'size-2 shrink-0 rounded-full bg-(--ui-accent,#4f9cf9)',
+                    className: 'size-2 shrink-0 rounded-full bg-(--dt-ring,var(--ui-accent,#4f9cf9))',
                     'aria-label': 'unread'
                   })
                 : null,
@@ -3113,6 +3148,31 @@ function BotRow({ bot, onEdit, onDelete }) {
             onSelect: () => toggleBotPin(bot.name),
             children: pinned ? 'Unpin from top' : 'Pin to top'
           }),
+          // P3.18 (composite review): pinned-bot reorder was mouse-drag
+          // only. Menu commands make it keyboard-reachable (context menu
+          // key / Shift+F10), matching the same order semantics as the drag.
+          ...(pinned
+            ? [
+                jsx(
+                  ContextMenuItem,
+                  {
+                    disabled: $pinnedBots.get()[0] === bot.name,
+                    onSelect: () => movePinnedBotRelative(bot.name, -1),
+                    children: 'Move earlier'
+                  },
+                  `${bot.name}-move-earlier`
+                ),
+                jsx(
+                  ContextMenuItem,
+                  {
+                    disabled: $pinnedBots.get().at(-1) === bot.name,
+                    onSelect: () => movePinnedBotRelative(bot.name, 1),
+                    children: 'Move later'
+                  },
+                  `${bot.name}-move-later`
+                )
+              ]
+            : []),
           jsx(ContextMenuItem, {
             onSelect: () => onEdit(bot),
             children: 'Edit Profile'
@@ -5790,8 +5850,8 @@ function BotsPane() {
           className:
             'flex h-8 min-w-0 w-full items-center gap-1.5 border px-2.5 text-(--ui-text-quaternary)',
           style: {
-            backgroundColor: 'rgba(255,255,255,0.07)',
-            borderColor: 'rgba(255,255,255,0.10)',
+            backgroundColor: 'color-mix(in srgb, var(--ui-text-primary) 7%, transparent)',
+            borderColor: 'color-mix(in srgb, var(--ui-text-primary) 10%, transparent)',
             borderRadius: '12px'
           },
           children: [

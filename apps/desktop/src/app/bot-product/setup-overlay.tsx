@@ -231,16 +231,34 @@ function announceFirstBotProfile(profile: FirstBotProfile, open: boolean): void 
   )
 }
 
-function StatusRow({ ok, title, detail }: { ok: boolean; title: string; detail: string }) {
+function StatusRow({
+  ok,
+  title,
+  detail,
+  neutral
+}: {
+  ok: boolean
+  title: string
+  detail: string
+  /** P3.22: "not applicable" (e.g. Connect apps skipped by choice) is NOT
+   *  "not done" — a hollow marker, not the same dash an incomplete step
+   *  paints. */
+  neutral?: boolean
+}) {
   return (
     <div className="flex items-start gap-3 rounded-xl bg-primary/[0.06] p-3.5">
       <span
         className={cn(
           'mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs',
-          ok ? 'bg-emerald-500/15 text-emerald-400' : 'bg-primary/10 text-muted-foreground'
+          ok
+            ? 'bg-emerald-500/15 text-emerald-400'
+            : neutral
+              ? 'border border-dashed border-muted-foreground/40 text-muted-foreground'
+              : 'bg-primary/10 text-muted-foreground'
         )}
+        title={neutral && !ok ? 'Optional — skipped' : undefined}
       >
-        {ok ? '✓' : '–'}
+        {ok ? '✓' : neutral ? '◦' : '–'}
       </span>
       <div className="min-w-0">
         <div className="text-sm font-medium">{title}</div>
@@ -790,7 +808,12 @@ export function BotSetupOverlay({
           <div className="mt-4 grid gap-2">
             <StatusRow detail="Codex or Grok is connected." ok={doctor.provider} title="Runtime + model" />
             <StatusRow detail="Ready to chat." ok={doctor.bot} title="First bot" />
-            <StatusRow detail={doctor.composio ? 'Key saved for every bot.' : 'Skipped — add later from Connectors.'} ok={doctor.composio} title="Connect apps" />
+            <StatusRow
+              detail={doctor.composio ? 'Key saved for every bot.' : 'Skipped — add later from Connectors.'}
+              neutral={!doctor.composio}
+              ok={doctor.composio}
+              title="Connect apps"
+            />
             <StatusRow detail={doctor.computer ? 'Connected over SSH.' : 'Running on this machine.'} ok={doctor.computer} title="Home computer" />
             <Button autoFocus className="mt-2" onClick={() => finish(false)}>
               Open Bot Chat

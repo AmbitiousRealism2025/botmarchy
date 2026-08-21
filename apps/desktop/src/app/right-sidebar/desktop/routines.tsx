@@ -221,10 +221,29 @@ export function RoutineEditor({ job, onClose }: RoutineEditorProps) {
       if (job) {
         await updateCronJob(job.id, { enabled, name: name.trim(), prompt: prompt.trim(), schedule })
       } else {
-        const created = await createCronJob({ name: name.trim(), prompt: prompt.trim(), schedule })
+        // Composite review P3.5: the CREATE and the initial PAUSE are
+        // separate failure domains — a created routine whose pause failed
+        // must not report "could not create" (it exists) nor get retried
+        // into a duplicate.
+        let created
+
+        try {
+          created = await createCronJob({ name: name.trim(), prompt: prompt.trim(), schedule })
+        } catch (createError) {
+          notifyError(createError, 'Could not create routine')
+
+          return
+        }
 
         if (!enabled) {
-          await pauseCronJob(created.id)
+          try {
+            await pauseCronJob(created.id)
+          } catch (pauseError) {
+            notifyError(pauseError, 'Routine created, but pausing it failed — toggle it in the list')
+            onClose(true)
+
+            return
+          }
         }
       }
 

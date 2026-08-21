@@ -13022,7 +13022,20 @@ function handleDeepLink(url) {
 
   // hermes://blueprint/<key>?slot=val  -> host="blueprint", path="/<key>"
   const kind = parsed.hostname || ''
-  const name = decodeURIComponent((parsed.pathname || '').replace(/^\//, ''))
+
+  // Composite review P3.14: decode INSIDE the guarded parser — a malformed
+  // percent-escape must be ignored like any other bad URL, not thrown from
+  // the handler.
+  let name = ''
+
+  try {
+    name = decodeURIComponent((parsed.pathname || '').replace(/^\//, ''))
+  } catch {
+    rememberLog(`[deeplink] ignoring malformed percent-encoding: ${url}`)
+
+    return
+  }
+
   const params = {}
   parsed.searchParams.forEach((v, k) => {
     params[k] = v
