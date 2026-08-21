@@ -15,7 +15,7 @@
     "defaultSection": "right",
     "defaults": {
       "intervalSec": 10,
-      "sshTarget": "ambitiousrealism@omarchy-1.tail9106ac.ts.net"
+      "sshTarget": ""
     },
     "schema": [
       { "key": "intervalSec", "type": "int", "label": "Refresh interval (seconds)" },
