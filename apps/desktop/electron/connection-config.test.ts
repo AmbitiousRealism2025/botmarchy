@@ -12,13 +12,14 @@
 
 import assert from 'node:assert/strict'
 
-import { test } from 'vitest'
+import { describe, expect, it, test } from 'vitest'
 
 import {
   AT_COOKIE_VARIANTS,
   authModeFromStatus,
   buildGatewayWsUrl,
   buildGatewayWsUrlWithTicket,
+  coerceConnectionConfig,
   connectionScopeKey,
   cookiesHaveLiveSession,
   cookiesHavePrivySession,
@@ -708,4 +709,107 @@ test('resolveTestWsUrl (oauth) requires a mintTicket function', async () => {
     () => resolveTestWsUrl('https://gw.example.com', 'oauth', null),
     /mintTicket function is required/
   )
+})
+
+// ── coerceConnectionConfig (moved from main.ts, composite review P2.18) ──
+// Behavior tests replacing the hardening source-assertions: the coercion is
+// now a real function with injected crypto, so the token-persistence and
+// mode-collapse contracts are tested as behavior, not grepped from main.ts.
+
+describe('coerceConnectionConfig', () => {
+  const secret = 'tok_123'
+
+  // Crypto doubles mirror the real contract: encrypt wraps, decrypt
+  // unwraps the SAME envelope shape (the real keyring round-trip).
+  const deps = {
+    decryptSecret: (t: unknown) => {
+      if (typeof t === 'string') {return t}
+
+      if (t && typeof t === 'object' && 'plain' in (t as Record<string, unknown>)) {
+        return String((t as Record<string, unknown>).plain)
+      }
+
+      return null
+    },
+    encryptSecret: (plain: string) => ({ plain })
+  }
+
+  it('routes token persistence through the hardening helper: plain text ONLY on strict opt-in', () => {
+    // The PLAIN-TEXT REFUSAL lives in the real encryptDesktopSecret (covered
+    // by hardening's own tests). The coercion's contract — what the removed
+    // source test used to grep for — is that the opt-in reaches the helper
+    // RAW with `=== true` semantics: strict boolean, nothing else.
+    const calls: Array<{ plain: string; allowPlainText: boolean }> = []
+
+    const recordingDeps = {
+      ...deps,
+      encryptSecret: (plain: string, opts?: { allowPlainText?: boolean }) => {
+        calls.push({ plain, allowPlainText: Boolean(opts?.allowPlainText) })
+
+        return { plain }
+      }
+    }
+
+    const opted = coerceConnectionConfig(
+      { mode: 'remote', remoteUrl: 'https://gw.example', remoteToken: secret, allowPlainTextToken: true },
+      { mode: 'local' },
+      {},
+      recordingDeps
+    )
+
+    expect((opted.remote as any).token).toEqual({ plain: secret })
+    expect(calls.at(-1)).toEqual({ plain: secret, allowPlainText: true })
+
+    // Absent opt-in → forwarded as false (the real encryptSecret refuses
+    // plain text on false; the coercion never weakens it).
+    coerceConnectionConfig(
+      { mode: 'remote', remoteUrl: 'https://gw.example', remoteToken: secret },
+      { mode: 'local' },
+      {},
+      recordingDeps
+    )
+    expect(calls.at(-1)?.allowPlainText).toBe(false)
+
+    // Truthy-non-true must NOT enable it (strict `=== true` in the helper).
+    coerceConnectionConfig(
+      { mode: 'remote', remoteUrl: 'https://gw.example', remoteToken: secret, allowPlainTextToken: 'yes' },
+      { mode: 'local' },
+      {},
+      recordingDeps
+    )
+    expect(calls.at(-1)?.allowPlainText).toBe(false)
+  })
+
+  it('builds a global ssh block from a save payload', () => {
+    const config = coerceConnectionConfig(
+      { mode: 'ssh', sshHost: 'omarchy-1', sshUser: 'me', sshPort: 2222 },
+      { mode: 'local' },
+      {},
+      deps
+    )
+
+    expect(config.mode).toBe('ssh')
+    expect((config.remote as any).host).toBe('omarchy-1')
+    expect((config.remote as any).user).toBe('me')
+    expect((config.remote as any).port).toBe(2222)
+  })
+
+  it('collapses anything non-ssh/non-remote-like to local', () => {
+    const config = coerceConnectionConfig({ mode: 'weird' }, { mode: 'local' }, {}, deps)
+
+    expect(config.mode).toBe('local')
+  })
+
+  it('a per-profile ssh override wins over the global mode and preserves other profiles', () => {
+    const config = coerceConnectionConfig(
+      { mode: 'ssh', profile: 'default', sshHost: 'box-b' },
+      { mode: 'local', profiles: { prime: { mode: 'ssh', host: 'box-a' } } },
+      {},
+      deps
+    )
+
+    expect(config.mode).toBe('local')
+    expect((config.profiles as any).default.host).toBe('box-b')
+    expect((config.profiles as any).prime.host).toBe('box-a')
+  })
 })

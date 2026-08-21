@@ -5,6 +5,7 @@ import { atom, computed } from 'nanostores'
 import type { CSSProperties, ReactElement, PointerEvent as ReactPointerEvent } from 'react'
 
 import { BotConnectionChip } from '@/app/bot-product/connection-chip'
+import { productTreeFor } from './bot-layout'
 import { CHAT_HEADER_AREA } from '@/app/chat/contrib'
 import { SessionDraftTitle } from '@/app/chat/session-draft-title'
 import { SessionStatusDot } from '@/app/chat/session-status-dot'
@@ -375,20 +376,7 @@ const DEFAULT_TREE = split(
   'spl-root'
 )
 
-// Bot products open in the messenger layout users already know from Bot Mode:
-// a persistent roster at left, the active Bot Chat in the center, and the
-// fixed computer/routines rail mounted by ContribController at right.
-const BOT_TREE = split(
-  'row',
-  [
-    group(['hermes-bots:pane-v2'], { id: 'grp-bots' }),
-    group(['workspace'], { id: 'grp-main' })
-  ],
-  [1, 3.4],
-  'spl-root'
-)
-
-const PRODUCT_TREE = isBotProduct() ? BOT_TREE : DEFAULT_TREE
+const PRODUCT_TREE = productTreeFor(DEFAULT_TREE)
 
 const FOCUS_TREE = split('row', [group(['sessions']), group(['workspace', 'files', 'review', 'terminal'])], [1, 4.6])
 

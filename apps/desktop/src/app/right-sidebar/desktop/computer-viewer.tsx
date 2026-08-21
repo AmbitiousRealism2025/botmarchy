@@ -51,6 +51,14 @@ function agentLabel(profile: string, computerName: string): string {
  *  Fullscreen ignores it and shows the screen whole. */
 const SCREEN_PANEL_PX = 28
 
+/** Top crop for the computer preview: the panel bar is a FIXED pixel band
+ *  (XFCE chrome). As a percentage it looked right at 1280x720 and started
+ *  eating window content at 1280x800 — Chrome's tab strip lost its top edge.
+ *  Extracted (composite P2.18) so the shape is testable, not just greppable. */
+export function screenTopCrop(screenHeight: number | null | undefined): number {
+  return screenHeight ? Math.min(0.12, SCREEN_PANEL_PX / screenHeight) : 0
+}
+
 export function OrgoDesktopPane() {
   const { t } = useI18n()
   const copy = t.rightSidebar.desktop
@@ -390,7 +398,7 @@ export function OrgoDesktopPane() {
   const screenAspect = screenSize ? screenSize.width / screenSize.height : null
   // Guard the fraction: a tiny or unreported framebuffer must not turn the
   // panel trim into a crop that swallows the picture.
-  const topCrop = screenSize ? Math.min(0.12, SCREEN_PANEL_PX / screenSize.height) : 0
+  const topCrop = screenTopCrop(screenSize?.height)
 
   // The titlebar gear raises a request rather than reaching into this pane's
   // state; consume and clear it so a request made while the pane was closed

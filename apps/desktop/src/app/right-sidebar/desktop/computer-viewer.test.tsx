@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs'
 
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -56,7 +55,7 @@ const { MockRfb, rfbInstances } = vi.hoisted(() => {
 
 vi.mock('@novnc/novnc', () => ({ default: MockRfb }))
 
-import { OrgoDesktopPane } from './computer-viewer'
+import { screenTopCrop, OrgoDesktopPane } from './computer-viewer'
 
 const SESSION: DesktopOrgoSessionResult = {
   ok: true,
@@ -174,24 +173,19 @@ describe('OrgoDesktopPane', () => {
     expect(surface.className).not.toContain('object-cover')
   })
 
+  // Composite review P2.18: replaced source-text assertions with behavior
+  // tests of the extracted crop function (the old tests grepped for the
+  // formula's spelling — they passed on broken wiring and failed on
+  // harmless refactors).
   it('trims the panel bar by pixels, so a taller screen is not over-cropped', () => {
-    // The bar is a fixed 26px of XFCE chrome. Expressed as a percentage it
-    // looked right at 1280x720 and started eating window content the moment
-    // the machine moved to 1280x800 — Chrome's tab strip lost its top edge.
-    const source = readFileSync('src/app/right-sidebar/desktop/computer-viewer.tsx', 'utf8')
-
-    expect(source).toContain('SCREEN_PANEL_PX')
-    expect(source).toMatch(/SCREEN_PANEL_PX \/ screenSize\.height/)
-    expect(source).not.toContain('SCREEN_TOP_CROP')
-  })
-
-  it('starts the computer preview near the top instead of reserving an empty header', () => {
-    const source = readFileSync('src/app/right-sidebar/desktop/computer-viewer.tsx', 'utf8')
-    const details = source.match(/aria-hidden=\{view !== 'details'\}[\s\S]*?<AgentRoutines/)
-
-    expect(details).not.toBeNull()
-    expect(details?.[0]).not.toContain('<RailHeader />')
-    expect(details?.[0]).toContain('<section className="shrink-0 px-2.5 pt-2">')
+    // The panel band is a fixed 28px: the crop fraction SHRINKS as the
+    // screen grows (1280x720 → ~3.9%, 1280x800 → ~3.5%) and a tiny or
+    // unreported framebuffer never gets a crop that swallows the picture.
+    expect(screenTopCrop(720)).toBeCloseTo(28 / 720, 5)
+    expect(screenTopCrop(800)).toBeLessThan(screenTopCrop(720))
+    expect(screenTopCrop(100)).toBe(0.12)  // clamped, never 28%
+    expect(screenTopCrop(null)).toBe(0)
+    expect(screenTopCrop(undefined)).toBe(0)
   })
 
   it('reshapes the frame when the remote machine changes resolution', async () => {

@@ -17,6 +17,8 @@
  *     `?ticket=` minted at POST /api/auth/ws-ticket. The gateway advertises
  *     this via the public `/api/status` field `auth_required: true`.
  */
+import { resolvePersistedRemoteToken } from './hardening'
+
 
 // Bare + prefixed variants of the session cookies the gateway may set,
 // depending on its deploy shape (HTTPS direct → __Host-, behind a path prefix
@@ -587,3 +589,157 @@ export {
   savedProfileSsh,
   tokenPreview
 }
+
+export interface CoerceDeps {
+  decryptSecret: (token: unknown) => string | null
+  encryptSecret: (plain: string) => object
+}
+
+function buildRemoteBlock(deps: CoerceDeps, remoteUrl: string, authMode: string, token: unknown, org?: string) {
+  if (authMode !== 'oauth' && !deps.decryptSecret(token)) {
+    throw new Error('Remote gateway session token is required.')
+  }
+
+  const block: { url: string; authMode: string; token: unknown; org?: string } = {
+    url: normalizeRemoteBaseUrl(remoteUrl),
+    authMode,
+    token
+  }
+
+  const orgValue = typeof org === 'string' ? org.trim() : ''
+
+  if (orgValue) {
+    block.org = orgValue
+  }
+
+  return block
+}
+
+export function coerceConnectionConfig(input: any = {}, existing: any = null, options: any = {}, deps?: CoerceDeps) {
+  // Defaults keep the coercion callable without main-process crypto (pure
+  // tests): decrypt yields null (no token present), encrypt wraps in a
+  // marker object. main.ts binds the real keyring functions.
+  const d: CoerceDeps = deps ?? {
+    decryptSecret: () => null,
+    encryptSecret: plain => ({ plain })
+  }
+
+  const persistToken = options.persistToken !== false
+  const key = connectionScopeKey(input.profile)
+  // 'cloud' and 'remote' both persist a remote-shaped block; 'cloud' is
+  // remembered as its own provenance (Q6) and resolves to remote downstream.
+  // Anything else collapses to local.
+  const mode = input.mode === 'ssh' ? 'ssh' : modeIsRemoteLike(input.mode) ? input.mode : 'local'
+  const remoteLike = modeIsRemoteLike(mode)
+
+  // The block being edited: a per-profile entry or the global remote block.
+  const rawExistingBlock = key ? existing.profiles?.[key] || {} : existing.remote || {}
+  // Leaving a CLOUD connection unselects it: a cloud block's url/org/token
+  // describe a discovered Hermes Cloud instance, NOT a user-owned remote gateway,
+  // so switching to local or remote must NOT inherit them (otherwise the stale
+  // cloud URL lingers and re-selecting Cloud looks "already connected"). When the
+  // saved block was cloud and the new mode is not cloud, start from an empty
+  // block. (remote↔local toggles still preserve a real remote URL as before.)
+  const existingMode = key ? existing.profiles?.[key]?.mode : existing.mode
+  const leavingCloud = existingMode === 'cloud' && mode !== 'cloud'
+  const leavingSsh = rawExistingBlock.mode === 'ssh' && mode !== 'ssh' && mode !== 'local'
+  const existingBlock = leavingCloud || leavingSsh ? {} : rawExistingBlock
+  const remoteUrl = String(input.remoteUrl ?? existingBlock.url ?? '').trim()
+  // authMode: explicit input wins; otherwise inherit the saved value, default 'token'.
+  const authMode = resolveAuthMode(input.remoteAuthMode, existingBlock.authMode)
+  // Cloud org: only meaningful for 'cloud' mode. Explicit input wins; otherwise
+  // inherit the saved org. A plain 'remote' connection never carries an org
+  // (switching cloud→remote drops it), so it stays unset unless mode is cloud.
+  const cloudOrg = mode === 'cloud' ? String(input.cloudOrg ?? existingBlock.org ?? '').trim() : ''
+  const incomingToken = typeof input.remoteToken === 'string' ? input.remoteToken.trim() : ''
+
+  // Persist decision lives in hardening.resolvePersistedRemoteToken so the
+  // IPC-propagation seam (allowPlainTextToken → encryptDesktopSecret opt-in) is
+  // covered by a focused regression test. Pass allowPlainText through RAW — the
+  // helper coerces with `=== true`, so a truthy-non-true value never enables
+  // plain-text storage, and that strictness is asserted in exactly one place.
+  const nextToken = resolvePersistedRemoteToken({
+    incomingToken,
+    persistToken,
+    existingToken: existingBlock.token,
+    allowPlainText: input.allowPlainTextToken,
+    encryptSecret: d.encryptSecret
+  })
+
+  if (mode === 'ssh') {
+    const sshBlock = buildSshBlock(input, savedProfileSsh(existing, key) || rawExistingBlock)
+
+    if (key) {
+      const profiles = { ...(existing.profiles || {}), [key]: sshBlock }
+
+      return {
+        mode: existing.mode === 'ssh' || modeIsRemoteLike(existing.mode) ? existing.mode : 'local',
+        remote: existing.remote || {},
+        profiles
+      }
+    }
+
+    return { mode: 'ssh', remote: sshBlock, profiles: existing.profiles || {} }
+  }
+
+  if (key) {
+    // Per-profile scope: a remote/cloud entry pins this profile to its own
+    // backend; a local entry clears the override so the profile inherits the
+    // default. The mode tag (remote vs cloud) is preserved on the entry.
+    const profiles = { ...(existing.profiles || {}) }
+
+    if (remoteLike) {
+      profiles[key] = { mode, ...buildRemoteBlock(deps, remoteUrl, authMode, nextToken, cloudOrg) }
+    } else {
+      const localEntry = localProfileEntry(rawExistingBlock)
+
+      if (localEntry) {
+        profiles[key] = localEntry
+      } else {
+        delete profiles[key]
+      }
+    }
+
+    return {
+      mode: existing.mode === 'ssh' || modeIsRemoteLike(existing.mode) ? existing.mode : 'local',
+      remote: existing.remote || {},
+      profiles
+    }
+  }
+
+  const nextRemote = remoteLike
+    ? buildRemoteBlock(deps, remoteUrl, authMode, nextToken, cloudOrg)
+    : existingMode === 'ssh'
+      ? rawExistingBlock
+      : { url: remoteUrl ? normalizeRemoteBaseUrl(remoteUrl) : remoteUrl, authMode, token: nextToken }
+
+  // Preserve per-profile overrides when saving the global connection.
+  return { mode, remote: nextRemote, profiles: existing.profiles || {} }
+}
+
+export function buildSshBlock(input: any, existingBlock: any = {}) {
+  // `??` (not `||`) so an explicit '' (user CLEARED the field) wins over the
+  // saved value; only a truly absent (undefined) field inherits.
+  const merged = normalizeSshConfig({
+    mode: 'ssh',
+    host: input.sshHost ?? existingBlock.host,
+    user: input.sshUser ?? existingBlock.user,
+    port: input.sshPort ?? existingBlock.port,
+    keyPath: input.sshKeyPath ?? existingBlock.keyPath,
+    remoteHermesPath: input.sshRemoteHermesPath ?? existingBlock.remoteHermesPath,
+    remoteProfile: input.sshRemoteProfile ?? existingBlock.remoteProfile
+  })
+
+  if (!merged) {
+    throw new Error('SSH host is required.')
+  }
+
+  // Carry forward an already-adopted dashboard token unless the host changed
+  // (a different host invalidates the old dashboard's token).
+  if (existingBlock.token && existingBlock.host === merged.host) {
+    merged.token = existingBlock.token
+  }
+
+  return merged
+}
+

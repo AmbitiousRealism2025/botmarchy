@@ -1,4 +1,6 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+
+import { injectBotCsp } from './scripts/bot-csp'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
@@ -50,6 +52,19 @@ const emojibaseDir =
   real(path.resolve(import.meta.dirname, 'node_modules/emojibase-data')) ??
   real(path.resolve(import.meta.dirname, '../../node_modules/emojibase-data'))
 
+// P2.3: bot production builds get a restrictive meta CSP (scripts pinned to
+// 'self' + build-time hashes of the inline pre-paint block; connect-src
+// loopback-only — matching the SKU's enforced local|ssh modes).
+const botCspMeta = (): Plugin => ({
+  name: 'hermes:bot-csp',
+  apply: 'build',
+  transformIndexHtml: {
+    handler: html =>
+      process.env.HERMES_DESKTOP_PRODUCT === 'bot' ? injectBotCsp(html) : html,
+    order: 'post'
+  }
+})
+
 const EMOJIBASE_PATH = /^[a-z-]+\/(data|messages|shortcodes\/emojibase)\.json$/
 
 const emojibaseAssets = () => ({
@@ -82,7 +97,7 @@ const emojibaseAssets = () => ({
 
 export default defineConfig(({ command }) => ({
   base: './',
-  plugins: [react(), tailwindcss(), emojibaseAssets()],
+  plugins: [react(), tailwindcss(), emojibaseAssets(), botCspMeta()],
   css: {
     // Pin an explicit (empty) PostCSS config. Tailwind is handled entirely by
     // `@tailwindcss/vite`, so the renderer needs no PostCSS plugins — and

@@ -65,6 +65,7 @@ import {
   publicError
 } from './composio-connectors'
 import { applyConnectionChange, resolveTerminalConnection } from './connection-apply'
+import { shouldProbeBeforeApply } from './connection-apply-guard'
 import {
   authModeFromStatus,
   buildGatewayWsUrl,
@@ -76,7 +77,6 @@ import {
   gatewayTicketFailure,
   gatewayWsUrlIpcResult,
   hostLabelFromBaseUrl,
-  localProfileEntry,
   modeIsRemoteLike,
   normalizeRemoteBaseUrl,
   normalizeSshConfig,
@@ -85,12 +85,12 @@ import {
   profileHasRemoteConnection,
   profileRemoteOverride,
   profileSshOverride,
-  resolveAuthMode,
   resolveProfileBackendRoute,
   resolveTestWsUrl,
   savedProfileSsh,
   tokenPreview
 } from './connection-config'
+import { coerceConnectionConfig } from './connection-config'
 import { describeCrashReason, installCrashForensics } from './crash-forensics'
 import { adoptServedDashboardToken } from './dashboard-token'
 import { loadOrCreateInstallationId, sshOwnershipId } from './desktop-installation'
@@ -148,7 +148,6 @@ import {
   enableBasicPasswordStoreEncryption,
   encryptDesktopSecret as encryptDesktopSecretStrict,
   readFileDataUrlForIpc,
-  resolvePersistedRemoteToken,
   resolveReadableFileForIpc,
   resolveRequestedPathForIpc,
   resolveTimeoutMs,
@@ -163,6 +162,7 @@ import { createHudSnapShortcut } from './hud-snap-shortcut'
 import { buildHudWindowUrl } from './hud-url'
 import { createLinkTitleWindow, guardLinkTitleSession, readLinkTitleWindowTitle } from './link-title-window'
 import { ensureMainWindow } from './main-window-lifecycle'
+import { syncMusterTarget } from './muster-sync'
 import {
   oauthGuardMayHardFail,
   oauthSessionIsLive,
@@ -181,8 +181,6 @@ import { runNativeLogin } from './native-oauth-login'
 import { loadNativeTokenSet, type NativeTokenStoreIo, persistNativeTokenSet } from './native-token-store'
 import { serializeJsonBody, setJsonRequestHeaders } from './oauth-net-request'
 import { createOmarchyThemeService, type OmarchyGarnishTokens, omarchyThemePaths } from './omarchy-theme'
-import { osNotifyExecFor } from './os-notify'
-import { syncMusterTarget } from './muster-sync'
 import {
   beginOrgoTailscaleSetup,
   BOT_ORGO_LEGACY_WORKSPACE_NAME,
@@ -213,6 +211,7 @@ import {
   resolveOrgoDesktopProfile,
   serializeOrgoDesktopError
 } from './orgo-desktop'
+import { osNotifyExecFor } from './os-notify'
 import { createKeepAwake } from './power-save'
 import { FirstRunSetupResetError, runPrimaryBackendStartup } from './primary-backend-startup'
 import { rehomePrimaryConnection } from './primary-connection-rehome'
@@ -7559,149 +7558,22 @@ async function sanitizeDesktopConnectionConfig(config = readDesktopConnectionCon
 // `org` (optional) is the Hermes Cloud org slug/id the instance was discovered
 // under — persisted so Settings can reopen into the same org; omitted from the
 // block when empty so plain remote connections stay unchanged.
-function buildRemoteBlock(remoteUrl, authMode, token, org?: string) {
-  if (authMode !== 'oauth' && !decryptDesktopSecret(token)) {
-    throw new Error('Remote gateway session token is required.')
-  }
 
-  const block: { url: string; authMode: string; token: object; org?: string } = {
-    url: normalizeRemoteBaseUrl(remoteUrl),
-    authMode,
-    token
-  }
 
-  const orgValue = typeof org === 'string' ? org.trim() : ''
-
-  if (orgValue) {
-    block.org = orgValue
-  }
-
-  return block
-}
-
+// Thin main-side wrappers (composite review P2.18): the coercion LOGIC
+// lives in connection-config.ts (pure, unit-tested); these bind the
+// main-only dependencies (keyring crypto, the live config reader).
 function coerceDesktopConnectionConfig(input: any = {}, existing = readDesktopConnectionConfig(), options: any = {}) {
-  const persistToken = options.persistToken !== false
-  const key = connectionScopeKey(input.profile)
-  // 'cloud' and 'remote' both persist a remote-shaped block; 'cloud' is
-  // remembered as its own provenance (Q6) and resolves to remote downstream.
-  // Anything else collapses to local.
-  const mode = input.mode === 'ssh' ? 'ssh' : modeIsRemoteLike(input.mode) ? input.mode : 'local'
-  const remoteLike = modeIsRemoteLike(mode)
-
-  // The block being edited: a per-profile entry or the global remote block.
-  const rawExistingBlock = key ? existing.profiles?.[key] || {} : existing.remote || {}
-  // Leaving a CLOUD connection unselects it: a cloud block's url/org/token
-  // describe a discovered Hermes Cloud instance, NOT a user-owned remote gateway,
-  // so switching to local or remote must NOT inherit them (otherwise the stale
-  // cloud URL lingers and re-selecting Cloud looks "already connected"). When the
-  // saved block was cloud and the new mode is not cloud, start from an empty
-  // block. (remote↔local toggles still preserve a real remote URL as before.)
-  const existingMode = key ? existing.profiles?.[key]?.mode : existing.mode
-  const leavingCloud = existingMode === 'cloud' && mode !== 'cloud'
-  const leavingSsh = rawExistingBlock.mode === 'ssh' && mode !== 'ssh' && mode !== 'local'
-  const existingBlock = leavingCloud || leavingSsh ? {} : rawExistingBlock
-  const remoteUrl = String(input.remoteUrl ?? existingBlock.url ?? '').trim()
-  // authMode: explicit input wins; otherwise inherit the saved value, default 'token'.
-  const authMode = resolveAuthMode(input.remoteAuthMode, existingBlock.authMode)
-  // Cloud org: only meaningful for 'cloud' mode. Explicit input wins; otherwise
-  // inherit the saved org. A plain 'remote' connection never carries an org
-  // (switching cloud→remote drops it), so it stays unset unless mode is cloud.
-  const cloudOrg = mode === 'cloud' ? String(input.cloudOrg ?? existingBlock.org ?? '').trim() : ''
-  const incomingToken = typeof input.remoteToken === 'string' ? input.remoteToken.trim() : ''
-
-  // Persist decision lives in hardening.resolvePersistedRemoteToken so the
-  // IPC-propagation seam (allowPlainTextToken → encryptDesktopSecret opt-in) is
-  // covered by a focused regression test. Pass allowPlainText through RAW — the
-  // helper coerces with `=== true`, so a truthy-non-true value never enables
-  // plain-text storage, and that strictness is asserted in exactly one place.
-  const nextToken = resolvePersistedRemoteToken({
-    incomingToken,
-    persistToken,
-    existingToken: existingBlock.token,
-    allowPlainText: input.allowPlainTextToken,
+  return coerceConnectionConfig(input, existing, options, {
+    decryptSecret: decryptDesktopSecret,
     encryptSecret: encryptDesktopSecret
   })
-
-  if (mode === 'ssh') {
-    const sshBlock = buildSshBlock(input, savedProfileSsh(existing, key) || rawExistingBlock)
-
-    if (key) {
-      const profiles = { ...(existing.profiles || {}), [key]: sshBlock }
-
-      return {
-        mode: existing.mode === 'ssh' || modeIsRemoteLike(existing.mode) ? existing.mode : 'local',
-        remote: existing.remote || {},
-        profiles
-      }
-    }
-
-    return { mode: 'ssh', remote: sshBlock, profiles: existing.profiles || {} }
-  }
-
-  if (key) {
-    // Per-profile scope: a remote/cloud entry pins this profile to its own
-    // backend; a local entry clears the override so the profile inherits the
-    // default. The mode tag (remote vs cloud) is preserved on the entry.
-    const profiles = { ...(existing.profiles || {}) }
-
-    if (remoteLike) {
-      profiles[key] = { mode, ...buildRemoteBlock(remoteUrl, authMode, nextToken, cloudOrg) }
-    } else {
-      const localEntry = localProfileEntry(rawExistingBlock)
-
-      if (localEntry) {
-        profiles[key] = localEntry
-      } else {
-        delete profiles[key]
-      }
-    }
-
-    return {
-      mode: existing.mode === 'ssh' || modeIsRemoteLike(existing.mode) ? existing.mode : 'local',
-      remote: existing.remote || {},
-      profiles
-    }
-  }
-
-  const nextRemote = remoteLike
-    ? buildRemoteBlock(remoteUrl, authMode, nextToken, cloudOrg)
-    : existingMode === 'ssh'
-      ? rawExistingBlock
-      : { url: remoteUrl ? normalizeRemoteBaseUrl(remoteUrl) : remoteUrl, authMode, token: nextToken }
-
-  // Preserve per-profile overrides when saving the global connection.
-  return { mode, remote: nextRemote, profiles: existing.profiles || {} }
 }
 
 // Build an SSH connection block from a save payload, preserving an
 // already-adopted dashboard token from the existing block (the token is minted
 // + reconciled at bootstrap, never user-entered). `mode: 'ssh'` is stamped so
 // normalizeSshConfig/profileSshOverride recognize it.
-function buildSshBlock(input: any, existingBlock: any = {}) {
-  // `??` (not `||`) so an explicit '' (user CLEARED the field) wins over the
-  // saved value; only a truly absent (undefined) field inherits.
-  const merged = normalizeSshConfig({
-    mode: 'ssh',
-    host: input.sshHost ?? existingBlock.host,
-    user: input.sshUser ?? existingBlock.user,
-    port: input.sshPort ?? existingBlock.port,
-    keyPath: input.sshKeyPath ?? existingBlock.keyPath,
-    remoteHermesPath: input.sshRemoteHermesPath ?? existingBlock.remoteHermesPath,
-    remoteProfile: input.sshRemoteProfile ?? existingBlock.remoteProfile
-  })
-
-  if (!merged) {
-    throw new Error('SSH host is required.')
-  }
-
-  // Carry forward an already-adopted dashboard token unless the host changed
-  // (a different host invalidates the old dashboard's token).
-  if (existingBlock.token && existingBlock.host === merged.host) {
-    merged.token = existingBlock.token
-  }
-
-  return merged
-}
 
 // Build a remote backend connection descriptor from an already-resolved remote
 // config. Handles both auth models (OAuth ws-ticket vs static session token)
@@ -11202,6 +11074,21 @@ ipcMain.handle('hermes:connection-config:save', async (_event, payload) => {
 
 async function applyDesktopConnectionConfig(payload) {
   const config = coerceDesktopConnectionConfig(payload)
+
+  // Composite review P2.4: verify-then-apply is enforced in MAIN, not just
+  // the renderer — a CHANGED global ssh config must prove itself with the
+  // same probe the wizard uses before it can rehome the backend. Unchanged
+  // fingerprints (relaunch, no-op save) never need a live box.
+  if (!payload?.profile && shouldProbeBeforeApply(config, readDesktopConnectionConfig())) {
+    const probe = await testDesktopConnectionConfig(payload)
+
+    if (probe && probe.reachable === false) {
+      const err: any = new Error(probe.error || 'That computer did not pass the connection test.')
+      err.sshError = probe.sshError
+      throw err
+    }
+  }
+
   writeDesktopConnectionConfig(config)
 
   // Composite review P2.14: the bot SKU's SSH apply also updates the Muster
