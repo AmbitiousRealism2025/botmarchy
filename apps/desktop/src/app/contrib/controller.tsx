@@ -4,6 +4,7 @@ import { useStore } from '@nanostores/react'
 import { atom, computed } from 'nanostores'
 import type { CSSProperties, ReactElement, PointerEvent as ReactPointerEvent } from 'react'
 
+import { BotConnectionChip } from '@/app/bot-product/connection-chip'
 import { CHAT_HEADER_AREA } from '@/app/chat/contrib'
 import { SessionDraftTitle } from '@/app/chat/session-draft-title'
 import { SessionStatusDot } from '@/app/chat/session-status-dot'
@@ -236,6 +237,17 @@ registry.registerMany(
 
 registry.registerMany(
   [
+    // Bot SKU: the connection chip in the titlebar's left slot (composite
+    // review P1.11) — mode + SSH host + gateway-health dot. The statusbar
+    // is unmounted in this SKU, so without this the headline mode's core
+    // state ("which box / is the link up") has no at-a-glance surface.
+    isBotProduct()
+      ? {
+          id: 'bot.connection-chip',
+          area: 'titleBar.left' as const,
+          render: () => <BotConnectionChip />
+        }
+      : null,
     {
       id: 'layout.editMode',
       area: KEYBINDS_AREA,
@@ -317,7 +329,13 @@ registry.registerMany(
         run: () => void runImportProfileFlow()
       } satisfies PaletteContribution
     }
-  ].filter(item => !isBotProduct() || item.id === 'keybinds.panel')
+  ].filter(
+    // Bot SKU keeps only its own chrome contributions from this batch
+    // (null items are the SKU-conditional ones that don't apply).
+    item =>
+      item !== null &&
+      (!isBotProduct() || item.id === 'keybinds.panel' || item.id === 'bot.connection-chip')
+  ) as Parameters<typeof registry.registerMany>[0]
 )
 
 // ---------------------------------------------------------------------------
