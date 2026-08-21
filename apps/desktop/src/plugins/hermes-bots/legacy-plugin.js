@@ -6237,13 +6237,34 @@ export default {
         beginNewConversation()
       }
 
+      // Deep-link engage (MP-1): hermes://bot/<name> — e.g. Muster's roster
+      // "engage" — selects that bot's chat. Name-validated (deep-link input
+      // arrives from URLs/argv); unknown-but-valid names still open — the
+      // roster catch-up covers them the same way canonical recovery does.
+      // Deliberately NOT gated on botsMessengerActive(): that selector
+      // assumes the messenger pane is the visible surface, which is false
+      // whenever the roster pane is hidden behind a routed session — a deep
+      // link is explicit user intent and must engage regardless.
+      const onOpenBotEvent = event => {
+        const name = event?.detail?.name
+
+        if (typeof name !== 'string' || !NAME_RE.test(name)) {
+          return
+        }
+
+        console.info('[hermes-bots] deep-link engaging bot', name)
+        void openBotChat(botFromRoster(name))
+      }
+
       window.addEventListener('hashchange', onHashChange)
       window.addEventListener('hermes:new-session-shortcut', onNewSessionShortcut)
       window.addEventListener(FIRST_BOT_PROFILE_EVENT, onFirstBotProfile)
+      window.addEventListener('hermes-bots:open-bot', onOpenBotEvent)
       ctx.onDispose?.(() => {
         window.removeEventListener('hashchange', onHashChange)
         window.removeEventListener('hermes:new-session-shortcut', onNewSessionShortcut)
         window.removeEventListener(FIRST_BOT_PROFILE_EVENT, onFirstBotProfile)
+        window.removeEventListener('hermes-bots:open-bot', onOpenBotEvent)
       })
     }
 

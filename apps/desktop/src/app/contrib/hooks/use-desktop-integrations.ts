@@ -187,10 +187,25 @@ export function useDesktopIntegrations({
     return () => unsubscribe?.()
   }, [])
 
-  // hermes:// deep links -> a reviewable /blueprint command in the composer.
+  // hermes:// deep links. Two kinds today:
+  //   bot/<name>      -> select that bot's chat in the roster (Muster's
+  //                      engage path, MP-1). Delivered as a window event the
+  //                      hermes-bots pane listens for — the app exposes a
+  //                      generic surface, the plugin pane consumes it.
+  //   blueprint/<key> -> a reviewable /blueprint command in the composer.
   useEffect(() => {
     const unsubscribe = window.hermesDesktop?.onDeepLink?.(payload => {
-      if (!payload || payload.kind !== 'blueprint' || !payload.name) {
+      if (!payload || !payload.kind || !payload.name) {
+        return
+      }
+
+      if (payload.kind === 'bot') {
+        window.dispatchEvent(new CustomEvent('hermes-bots:open-bot', { detail: { name: payload.name } }))
+
+        return
+      }
+
+      if (payload.kind !== 'blueprint') {
         return
       }
 

@@ -133,6 +133,67 @@ describe('useDesktopIntegrations', () => {
     )
   }
 
+  describe('hermes:// deep links', () => {
+    it('bot/<name> dispatches the open-bot event the roster pane listens for', () => {
+      const events: CustomEvent[] = []
+
+      const spy = vi.spyOn(window, 'dispatchEvent').mockImplementation((event: Event) => {
+        if ((event as CustomEvent).type === 'hermes-bots:open-bot') {events.push(event as CustomEvent)}
+
+        return true
+      })
+
+      render()
+
+        const captured = vi.mocked(desktopWindow.hermesDesktop!.onDeepLink!).mock.calls[0]?.[0] as unknown as
+          (payload: { kind: string; name?: string; params?: Record<string, string> }) => void
+
+      expect(captured).toBeTypeOf('function')
+
+      captured?.({ kind: 'bot', name: 'master-chief', params: {} })
+      expect(events).toHaveLength(1)
+      expect(events[0].detail).toEqual({ name: 'master-chief' })
+
+      spy.mockRestore()
+    })
+
+    it('blueprint keeps routing to the composer', () => {
+      const botEvents: string[] = []
+
+      const spy = vi.spyOn(window, 'dispatchEvent').mockImplementation((event: Event) => {
+        if (event.type === 'hermes-bots:open-bot') {botEvents.push(event.type)}
+
+        return true
+      })
+
+      render()
+
+        const captured = vi.mocked(desktopWindow.hermesDesktop!.onDeepLink!).mock.calls[0]?.[0] as unknown as
+          (payload: { kind: string; name?: string; params?: Record<string, string> }) => void
+
+      captured?.({ kind: 'blueprint', name: 'morning-brief', params: { time: '08:00' } })
+
+      expect(botEvents).toHaveLength(0)
+      spy.mockRestore()
+    })
+
+    it('ignores malformed payloads and unknown kinds', () => {
+      const spy = vi.spyOn(window, 'dispatchEvent')
+
+      render()
+
+        const captured = vi.mocked(desktopWindow.hermesDesktop!.onDeepLink!).mock.calls[0]?.[0] as unknown as
+          (payload: { kind: string; name?: string; params?: Record<string, string> } | null) => void
+
+      captured?.(null)
+      captured?.({ kind: 'bot' })
+      captured?.({ kind: 'quantum', name: 'x' })
+
+      expect(spy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'hermes-bots:open-bot' }))
+      spy.mockRestore()
+    })
+  })
+
   describe('profile-ready gate', () => {
     it('does NOT restore before profileReady is true', () => {
       // Set remembered state, but profileReady=false.
