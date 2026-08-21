@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Botmarchy Muster — waybar module.
 # Emits one waybar JSON line: {"text","tooltip","class"}.
-# Polls the gateway box over ssh (ControlMaster-reused) with a cache
-# fallback so the bar degrades gracefully when the box is unreachable.
+# Polls the gateway box over ssh (ControlMaster-reused) on EVERY interval,
+# with the cache as the fallback so the bar degrades gracefully when the
+# box is unreachable. Unconfigured (no ssh target) → 'unknown' state.
 #
 # waybar config:
 #   "custom/muster": {
@@ -18,13 +19,32 @@ set -euo pipefail
 
 CONFIG_FILE="$HOME/.config/botmarchy/muster.json"
 CACHE_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/botmarchy/muster-state.json"
-SSH_TARGET="${BOTMARCHY_SSH:-ambitiousrealism@omarchy-1.tail9106ac.ts.net}"
 SSH_TIMEOUT=2
 STALE_AFTER=900  # cache older than 15 min → 'unknown' state
 
 mkdir -p "$(dirname "$CACHE_FILE")"
 
+# Target resolution (review F4): BOTMARCHY_SSH env (explicit override) →
+# muster.json's "ssh" → unconfigured. Never a hardcoded host.
+resolve_target() {
+  if [[ -n "${BOTMARCHY_SSH:-}" ]]; then
+    printf '%s' "$BOTMARCHY_SSH"
+    return
+  fi
+
+  python3 - "$CONFIG_FILE" <<'PY' 2>/dev/null || true
+import json, sys
+try:
+    print(json.load(open(sys.argv[1])).get("ssh", ""), end="")
+except Exception:
+    pass
+PY
+}
+
+SSH_TARGET="$(resolve_target)"
+
 refresh() {
+  [[ -n "$SSH_TARGET" ]] || return 0
   local snapshot
   if snapshot=$(ssh -o BatchMode=yes -o ConnectTimeout="$SSH_TIMEOUT" \
         "$SSH_TARGET" 'botmarchy-muster-snapshot' 2>/dev/null); then
@@ -34,10 +54,10 @@ refresh() {
 
 [[ "${1:-}" == "--refresh" ]] && { refresh; exit 0; }
 
-# Poll when invoked by waybar without cache (or cache is our only shot).
-if [[ ! -s "$CACHE_FILE" ]]; then
-  refresh
-fi
+# Poll on every scheduled invocation (review F2): the bounded SSH fetch is
+# the point of the interval, and the cache is the FAILURE fallback for an
+# unreachable box — never a substitute for polling while it IS reachable.
+refresh
 
 python3 - "$CACHE_FILE" <<'PY'
 import json, sys, time
