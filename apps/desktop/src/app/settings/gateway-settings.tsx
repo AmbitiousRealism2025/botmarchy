@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Terminal
 } from '@/lib/icons'
+import { isBotProduct } from '@/lib/product'
 import { coerceRemoteUrlScheme } from '@/lib/remote-url'
 import { selectableCardClass } from '@/lib/selectable-card'
 import { cn } from '@/lib/utils'
@@ -80,6 +81,24 @@ const EMPTY_STATE: GatewaySettingsState = {
   sshKeyPath: '',
   sshRemoteHermesPath: '',
   sshRemoteProfile: ''
+}
+
+/**
+ * Botmarchy connection-mode policy (charter: local or an owned computer over
+ * SSH — no cloud or hosted mode in v1). A persisted `cloud`/`remote` config is
+ * practically unreachable in a bot profile (isolated userData), but a hidden
+ * flow that a legacy config could reopen is a charter violation — normalize
+ * at hydration so those modes can never be selected, saved, or rendered.
+ */
+export function normalizeGatewayConfigForSku<T extends Pick<GatewaySettingsState, 'mode'>>(
+  config: T,
+  bot: boolean
+): T {
+  if (!bot || (config.mode !== 'cloud' && config.mode !== 'remote')) {
+    return config
+  }
+
+  return { ...config, mode: 'local' }
 }
 
 export function savedCloudConnectionUrl(config: Pick<GatewaySettingsState, 'mode' | 'remoteUrl'>): string {
@@ -177,8 +196,9 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
   const [connectedCloudUrl, setConnectedCloudUrl] = useState('')
 
   const acceptSavedConfig = (config: GatewaySettingsState) => {
-    setState(config)
-    setConnectedCloudUrl(savedCloudConnectionUrl(config))
+    const skuConfig = normalizeGatewayConfigForSku(config, isBotProduct())
+    setState(skuConfig)
+    setConnectedCloudUrl(savedCloudConnectionUrl(skuConfig))
   }
 
   // When set, the plain-text opt-in dialog is open; `apply` remembers whether
@@ -1108,7 +1128,16 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
         <div className="text-[length:var(--conversation-caption-font-size)] font-medium text-(--ui-text-secondary)">
           {g.modeTitle}
         </div>
-        <div className="grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 min-[72rem]:grid-cols-4">
+        {/* Botmarchy connection modes (charter): local or an owned computer
+            over SSH. The Hermes Cloud card and the generic remote-gateway
+            card are generic-SKU surfaces (PB-5 review). */}
+        <div
+          className={
+            isBotProduct()
+              ? 'grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2'
+              : 'grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2 min-[72rem]:grid-cols-4'
+          }
+        >
           <ModeCard
             active={state.mode === 'local'}
             description={scope === null ? g.localDesc : g.inheritDesc}
@@ -1117,23 +1146,27 @@ export function GatewaySettings({ embedded = false }: { embedded?: boolean } = {
             onSelect={() => setState(current => ({ ...current, mode: 'local' }))}
             title={scope === null ? g.localTitle : g.inheritTitle}
           />
-          <ModeCard
-            active={state.mode === 'cloud'}
-            description={g.cloudDesc}
-            disabled={state.envOverride}
-            icon={Cloud}
-            onSelect={() => setState(current => ({ ...current, mode: 'cloud' }))}
-            title={g.cloudTitle}
-          />
-          <ModeCard
-            active={state.mode === 'remote'}
-            description={g.remoteDesc}
-            disabled={state.envOverride}
-            hint={g.remoteAuthHint}
-            icon={Globe}
-            onSelect={() => setState(current => ({ ...current, mode: 'remote' }))}
-            title={g.remoteTitle}
-          />
+          {!isBotProduct() && (
+            <ModeCard
+              active={state.mode === 'cloud'}
+              description={g.cloudDesc}
+              disabled={state.envOverride}
+              icon={Cloud}
+              onSelect={() => setState(current => ({ ...current, mode: 'cloud' }))}
+              title={g.cloudTitle}
+            />
+          )}
+          {!isBotProduct() && (
+            <ModeCard
+              active={state.mode === 'remote'}
+              description={g.remoteDesc}
+              disabled={state.envOverride}
+              hint={g.remoteAuthHint}
+              icon={Globe}
+              onSelect={() => setState(current => ({ ...current, mode: 'remote' }))}
+              title={g.remoteTitle}
+            />
+          )}
           <ModeCard
             active={state.mode === 'ssh'}
             description={g.sshDesc}
