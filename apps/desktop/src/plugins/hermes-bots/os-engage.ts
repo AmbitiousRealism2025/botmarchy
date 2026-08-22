@@ -16,7 +16,7 @@ export interface OsEngageBot {
 const osEngageLastFired = new Map<string, number>()
 const OS_ENGAGE_COALESCE_MS = 5 * 60 * 1000
 
-function notifyOsEngage(bot: OsEngageBot, label: string, preview: string, inbound: boolean): boolean {
+export function notifyOsEngage(bot: OsEngageBot, label: string, preview: string, inbound: boolean): boolean {
   const key = String(bot.name || '')
   const now = Date.now()
 

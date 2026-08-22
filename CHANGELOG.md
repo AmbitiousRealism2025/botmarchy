@@ -1,5 +1,71 @@
 # Changelog
 
+## v0.1.2 — 2026-08-21
+
+**Security + first-run remediation release.** Everything here came out of
+a composite external review (three independent reviewers, deduplicated by
+root cause, re-verified line-by-line against v0.1.1). All 11 release
+blockers, 18 P2s, and 23 P3s addressed.
+
+**Security / hardening**
+
+- Packaged top-level navigation confined to the exact bundled renderer
+  entry — a crafted `file:` link in bot output can no longer load local
+  HTML under the privileged preload (the only finding that reached local
+  code execution). Non-http(S) Markdown links render as inert text.
+- The OS-notification `--exec` string is built only in the main process
+  from a validated bot profile — the renderer can no longer supply a
+  shell command (prefix-check injection closed).
+- SSH-target validation everywhere in Muster (leading-dash/charset gate;
+  live-tested against option injection), ack/engage profile validation,
+  `muster.json` written via a real JSON serializer.
+- Restrictive CSP in bot builds (scripts pinned by build-time sha256;
+  connections loopback-only).
+- Transactional apply: a changed SSH config must pass the connection
+  probe in the main process before it can rehome the backend.
+- Muster cache dir created before the first SSH (clean installs could
+  hard-fail), 0700, atomic + source-keyed + restart-restorable cache.
+
+**Charter enforcement**
+
+- The Orgo shared-computer wake is deleted from SSH bootstrap (it ran
+  only in the bot SKU — backwards — and log-noised every connect).
+- Every bot-reachable install/update instruction names the pinned
+  Botmarchy release in all four locales; upstream docs carry fork banners.
+- The main-process connection resolver enforces local|ssh for the bot
+  SKU (hand-edited configs can't point a bot client at an arbitrary URL).
+
+**First-run + keyboard**
+
+- "Create Routine" works (was a dead no-op); Esc returns to the list.
+- The onboarding wizard can no longer strand at the provider step when
+  "choose a provider later" is picked, nor pop over a live session later.
+- Visible keyboard focus again (focus-visible outline from the theme ring
+  token); the wizard is a real modal dialog (focus trap, Esc, Enter
+  submits, labelled, alerts).
+- The bot SKU's keybinds advertise only actions that exist; mod+j toggles
+  the routines rail. Titlebar: connection chip (mode + host + health
+  dot), no dead buttons, layout widths derived from what renders.
+
+**Fixes**
+
+- Muster staleness dimming actually engages when the gateway dies
+  (non-reactive binding fixed with a heartbeat timer); clock-skew-proof.
+- Usage record: per-model today numbers are tokens again (were prompt
+  counts); watermark updates are race-free (flock).
+- Muster follows the box the app connects to (target sync on apply);
+  roster window Enter engages the chosen bot (was: plain focus).
+- Provider "disconnect via terminal" no longer offered where no terminal
+  exists; language switcher hidden in the en-only v1 bot SKU.
+- The roster panel scrolls long courts and follows the keyboard cursor;
+  reduced-motion respected by face animation; run-history failures no
+  longer render as "No runs yet"; deep links survive malformed escapes.
+- **OS notifications now actually fire** — the activity detector's import
+  was silently unresolved in built bundles since v0.1.1 (caught by this
+  release's build; export fixed).
+
+---
+
 ## v0.1.1 — 2026-08-21
 
 **Supersedes v0.1.0** — the v0.1.0 AppImage asset was inadvertently built
